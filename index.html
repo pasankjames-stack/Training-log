@@ -204,6 +204,12 @@ if (!window.storage) {
 
 const STORE_KEY = "ulp-tracker-v1";
 
+// ====== GOOGLE SHEET SYNC (optional) ======
+// Paste your Apps Script web-app URL between the quotes to turn on
+// auto-saving to your Google Sheet. Leave it empty to keep sync off.
+const SHEET_SYNC_URL = "https://script.google.com/macros/s/AKfycbwJS-ycOjHqyywYP9Zgdr4cfv6tnyzRCbzyypYd6SrKh_axauRN2zOD7KK4XvGzFyRs/exec";
+// ==========================================
+
 // ---------- The plan ----------
 const PLAN = {
   "Upper A": { focus: "Push — chest, shoulders, triceps", ex: [
@@ -261,6 +267,27 @@ async function persist() {
   try { await window.storage.set(STORE_KEY, JSON.stringify(data)); }
   catch (e) { return false; }
   return true;
+}
+
+// Mirror the whole log into your Google Sheet (fire-and-forget).
+// localStorage stays the source of truth, so a failed sync never loses data.
+async function syncToSheet() {
+  if (!SHEET_SYNC_URL) return;
+  const rows = [];
+  data.sessions.forEach(s => {
+    const dp = PLAN[s.day]; if (!dp) return;
+    dp.ex.forEach(ex => {
+      const sets = s.ex[ex.id]; if (!sets) return;
+      sets.forEach((x, i) => rows.push([s.date, s.day, ex.name, i+1, ex.type==="kg"?(x.w||""):"BW", x.r||""]));
+    });
+  });
+  try {
+    await fetch(SHEET_SYNC_URL, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ rows })
+    });
+  } catch (e) { /* offline or blocked — localStorage still has everything */ }
 }
 
 // Seed: today's Lower A calibration session
@@ -405,7 +432,10 @@ async function saveSession() {
   if (idx >= 0) data.sessions[idx] = entry; else data.sessions.push(entry);
 
   const ok = await persist();
-  hint.textContent = ok ? "Saved ✓  — carried into your history" : "Couldn't save — try again";
+  if (ok) syncToSheet();
+  hint.textContent = ok
+    ? (SHEET_SYNC_URL ? "Saved ✓  — synced to your sheet" : "Saved ✓  — carried into your history")
+    : "Couldn't save — try again";
   if (ok) setTimeout(() => { hint.textContent = ""; render(); }, 1200);
 }
 
@@ -484,6 +514,7 @@ function armReset() {
 async function doReset() {
   data = { sessions: [], seeded: true };   // stay empty, don't re-seed on reload
   await persist();
+  syncToSheet();
   buildDraft(currentDay);
   render();
 }
