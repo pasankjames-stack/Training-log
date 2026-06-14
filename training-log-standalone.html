@@ -1,0 +1,531 @@
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Training Log</title>
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Training Log" />
+<meta name="theme-color" content="#EEEFF1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+<style>
+  :root {
+    --ink: #15191F;
+    --ink-soft: #5A636E;
+    --ink-faint: #99A1AB;
+    --paper: #EEEFF1;
+    --card: #FFFFFF;
+    --line: #E2E4E8;
+    --accent: #F0521E;        /* track orange — actions, progression-ready */
+    --accent-ink: #C23C0E;
+    --up: #1E9E6B;            /* hit the target */
+    --up-bg: #E5F4ED;
+    --hold: #B07A12;          /* repeat / chase reps */
+    --hold-bg: #FBF1DC;
+    --shadow: 0 1px 2px rgba(20,24,31,.05), 0 8px 24px rgba(20,24,31,.06);
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --body: "Inter", system-ui, sans-serif;
+    --mono: "Space Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--body);
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 480px; margin: 0 auto; padding: 18px 16px 120px; }
+
+  /* ---- Header ---- */
+  header { padding: 6px 2px 14px; }
+  .kicker {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 700;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 700; font-size: 27px;
+    margin: 2px 0 0; letter-spacing: -.01em;
+  }
+  .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  /* ---- Tabs ---- */
+  .tabs { display: flex; gap: 6px; margin: 16px 0 14px; }
+  .tab {
+    flex: 1; border: none; background: transparent; font-family: var(--display);
+    font-weight: 600; font-size: 13px; color: var(--ink-soft);
+    padding: 9px 0; border-radius: 10px; cursor: pointer; transition: .15s;
+  }
+  .tab.on { background: var(--ink); color: #fff; }
+
+  /* ---- Day selector ---- */
+  .days { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .day {
+    border: 1.5px solid var(--line); background: var(--card); border-radius: 13px;
+    padding: 12px 13px; text-align: left; cursor: pointer; transition: .15s;
+    box-shadow: var(--shadow);
+  }
+  .day.on { border-color: var(--ink); }
+  .day .dname { font-family: var(--display); font-weight: 700; font-size: 15px; }
+  .day .dfocus { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+  .day .dlast { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); margin-top: 6px; }
+
+  /* ---- Exercise card ---- */
+  .ex {
+    background: var(--card); border-radius: 15px; padding: 15px 15px 13px;
+    margin-bottom: 11px; box-shadow: var(--shadow);
+  }
+  .ex-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .ex-name { font-family: var(--display); font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; }
+  .ex-target { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
+  .ex-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
+    font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 20px; margin-top: 9px;
+  }
+  .chip.up { background: var(--up-bg); color: var(--up); }
+  .chip.hold { background: var(--hold-bg); color: var(--hold); }
+  .chip.new { background: #ECEEF1; color: var(--ink-soft); }
+
+  .sets { margin-top: 11px; display: flex; flex-direction: column; gap: 7px; }
+  .set-row { display: grid; grid-template-columns: 22px 1fr 1fr; gap: 8px; align-items: center; }
+  .set-no { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); font-weight: 700; }
+  .field { position: relative; }
+  .field input {
+    width: 100%; border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 11px 38px 11px 12px; font-family: var(--mono); font-size: 15px; font-weight: 700;
+    color: var(--ink); background: #FBFBFC; outline: none; transition: .15s;
+  }
+  .field input:focus { border-color: var(--accent); background: #fff; }
+  .field .unit {
+    position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); font-size: 11px; color: var(--ink-faint); pointer-events: none;
+  }
+  .set-head { display: grid; grid-template-columns: 22px 1fr 1fr; gap: 8px; margin-bottom: -2px; }
+  .set-head span { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .set-head span:first-child { visibility: hidden; }
+
+  /* ---- Save bar ---- */
+  .savebar {
+    position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, var(--paper) 70%, rgba(238,239,241,0));
+  }
+  .savebar .inner { max-width: 480px; margin: 0 auto; }
+  .btn {
+    width: 100%; border: none; border-radius: 13px; padding: 15px; cursor: pointer;
+    font-family: var(--display); font-weight: 700; font-size: 15px; transition: .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 6px 16px rgba(240,82,30,.28); }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:disabled { background: var(--ink-faint); box-shadow: none; }
+  .savehint { text-align: center; font-size: 11px; color: var(--ink-soft); margin-top: 7px; min-height: 14px; }
+
+  /* ---- History ---- */
+  .hentry { background: var(--card); border-radius: 14px; padding: 13px 15px; margin-bottom: 9px; box-shadow: var(--shadow); cursor: pointer; }
+  .hentry-top { display: flex; justify-content: space-between; align-items: center; }
+  .hday { font-family: var(--display); font-weight: 700; font-size: 14.5px; }
+  .hdate { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .hbody { margin-top: 9px; display: none; }
+  .hbody.open { display: block; }
+  .hex { display: flex; justify-content: space-between; padding: 5px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .hex:first-child { border-top: none; }
+  .hex .hn { color: var(--ink-soft); }
+  .hex .hv { font-family: var(--mono); font-weight: 700; font-size: 12px; }
+
+  .empty { text-align: center; padding: 50px 20px; color: var(--ink-soft); }
+  .empty .big { font-family: var(--display); font-weight: 700; font-size: 17px; color: var(--ink); margin-bottom: 6px; }
+
+  /* ---- Progress ---- */
+  .pcard { background: var(--card); border-radius: 14px; padding: 14px 15px; margin-bottom: 9px; box-shadow: var(--shadow); }
+  .pname { font-family: var(--display); font-weight: 700; font-size: 14px; margin-bottom: 9px; }
+  .ptrack { display: flex; align-items: flex-end; gap: 5px; height: 56px; }
+  .pbar { flex: 1; background: #ECEEF1; border-radius: 5px 5px 0 0; position: relative; min-height: 4px; }
+  .pbar.last { background: var(--accent); }
+  .pbar .pv { position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 9.5px; color: var(--ink-soft); }
+  .pdates { display: flex; gap: 5px; margin-top: 4px; }
+  .pdates span { flex: 1; text-align: center; font-family: var(--mono); font-size: 9px; color: var(--ink-faint); }
+
+  .toolbtn {
+    width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
+    padding: 13px; font-family: var(--display); font-weight: 600; font-size: 13.5px;
+    color: var(--ink); cursor: pointer; margin-top: 9px;
+  }
+  .toolbtn.danger { color: var(--accent-ink); }
+  .csvhint { font-size: 11.5px; color: var(--ink-soft); margin: 12px 2px 6px; }
+  .csvbox {
+    width: 100%; height: 120px; border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 11px 12px; font-family: var(--mono); font-size: 11px; color: var(--ink);
+    background: #FBFBFC; resize: vertical; outline: none;
+  }
+  .confirm { font-size: 12.5px; color: var(--ink); margin: 12px 2px 4px; font-weight: 600; }
+  .loading { text-align: center; padding: 60px 20px; color: var(--ink-faint); font-family: var(--mono); font-size: 13px; }
+</style>
+
+<div class="app">
+  <header>
+    <div class="kicker">Upper · Lower — Machines</div>
+    <h1>Training Log</h1>
+    <div class="sub">Recomp · machine &amp; cable based · back-care plan</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="log">Log</button>
+    <button class="tab" data-tab="history">History</button>
+    <button class="tab" data-tab="progress">Progress</button>
+  </div>
+
+  <div id="view"><div class="loading">Loading your log…</div></div>
+</div>
+
+<div class="savebar" id="savebar" style="display:none">
+  <div class="inner">
+    <button class="btn btn-primary" id="saveBtn">Save session</button>
+    <div class="savehint" id="saveHint"></div>
+  </div>
+</div>
+
+<script>
+// ---------- Standalone storage ----------
+// Inside Claude, window.storage exists. On its own, fall back to the
+// browser's localStorage so the same file works either place.
+if (!window.storage) {
+  window.storage = {
+    async get(key)        { const v = localStorage.getItem(key); return v == null ? null : { key, value: v }; },
+    async set(key, value) { localStorage.setItem(key, value); return { key, value }; },
+    async delete(key)     { localStorage.removeItem(key); return { key, deleted: true }; },
+    async list(prefix="") { const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix)); return { keys, prefix }; },
+  };
+}
+
+const STORE_KEY = "ulp-tracker-v1";
+
+// ---------- The plan ----------
+const PLAN = {
+  "Upper A": { focus: "Push — chest, shoulders, triceps", ex: [
+    { id:"chestpress", name:"Chest press machine", sets:3, lo:8, hi:10, type:"kg", note:"Seat so handles line up with mid-chest." },
+    { id:"seatedrow",  name:"Seated row (chest pad)", sets:3, lo:8, hi:12, type:"kg", note:"Chest on the pad, back protected." },
+    { id:"shoulderpress", name:"Shoulder press machine", sets:3, lo:8, hi:12, type:"kg" },
+    { id:"latraise", name:"Lateral raise machine", sets:3, lo:12, hi:15, type:"kg", note:"Go light — these humble everyone." },
+    { id:"tripush", name:"Triceps pushdown (cable)", sets:3, lo:12, hi:15, type:"kg" },
+  ]},
+  "Lower A": { focus: "Quads · hamstrings · core", ex: [
+    { id:"legpress", name:"Leg press", sets:3, lo:10, hi:12, type:"kg", note:"Back & hips on the pad — don't let your lower back curl off at the bottom." },
+    { id:"legext", name:"Leg extension", sets:3, lo:12, hi:12, type:"kg" },
+    { id:"legcurl", name:"Seated leg curl", sets:3, lo:12, hi:12, type:"kg" },
+    { id:"calf", name:"Calf raises", sets:2, lo:15, hi:20, type:"kg" },
+    { id:"deadbug", name:"Dead bug", sets:2, lo:8, hi:10, type:"bw", note:"Resist the movement, don't crunch." },
+    { id:"sideplank", name:"Side plank", sets:2, lo:20, hi:30, type:"sec", note:"Per side. Hips stacked." },
+  ]},
+  "Upper B": { focus: "Pull — back, biceps, rear delts", ex: [
+    { id:"latpull", name:"Lat pulldown", sets:3, lo:8, hi:12, type:"kg" },
+    { id:"cablerow", name:"Seated cable row", sets:3, lo:10, hi:12, type:"kg", note:"Sit tall — pull to your stomach without rocking back." },
+    { id:"pressany", name:"Chest or shoulder press", sets:3, lo:10, hi:12, type:"kg", note:"Whichever machine is free." },
+    { id:"facepull", name:"Face pulls", sets:3, lo:15, hi:15, type:"kg", note:"Great for posture if you sit a lot." },
+    { id:"bicep", name:"Cable bicep curls", sets:3, lo:10, hi:12, type:"kg" },
+  ]},
+  "Lower B": { focus: "Glutes · hamstrings · calves · core", ex: [
+    { id:"hipthrust", name:"Hip thrust machine", sets:3, lo:10, hi:12, type:"kg", note:"Bodyweight bridges if no machine. No spinal load." },
+    { id:"legpresshigh", name:"Leg press (feet high)", sets:3, lo:10, hi:12, type:"kg", note:"Higher feet shift work to glutes & hams." },
+    { id:"legcurlb", name:"Lying / seated leg curl", sets:3, lo:12, hi:12, type:"kg" },
+    { id:"hipab", name:"Hip abduction machine", sets:2, lo:12, hi:15, type:"kg", note:"Glute med — side-hip strength supports the lower back." },
+    { id:"calfb", name:"Calf raises", sets:2, lo:15, hi:20, type:"kg" },
+  ]},
+};
+const DAYS = Object.keys(PLAN);
+
+// ---------- State ----------
+let data = { sessions: [] };
+let currentDay = "Lower A";
+let currentTab = "log";
+let draft = {};   // { exId: [{w, r}, ...] }
+
+// ---------- Storage ----------
+async function load() {
+  try {
+    const res = await window.storage.get(STORE_KEY);
+    if (res && res.value) data = JSON.parse(res.value);
+  } catch (e) { /* empty / first run */ }
+  if (!data.sessions) data.sessions = [];
+  if (!data.seeded) {
+    if (data.sessions.length === 0) seed();
+    data.seeded = true;
+    await persist();   // lock in the seed + flag so it's stable across reloads
+  }
+}
+async function persist() {
+  try { await window.storage.set(STORE_KEY, JSON.stringify(data)); }
+  catch (e) { return false; }
+  return true;
+}
+
+// Seed: today's Lower A calibration session
+function seed() {
+  const today = isoToday();
+  data.sessions.push({
+    date: today, day: "Lower A",
+    ex: {
+      legpress: [{w:10,r:10},{w:10,r:10},{w:10,r:12}],
+      legext:   [{w:10,r:10},{w:10,r:10},{w:10,r:10}],
+      legcurl:  [{w:10,r:12},{w:10,r:12},{w:10,r:12}],
+      calf:     [{w:20,r:12},{w:20,r:12}],
+      deadbug:  [{w:0,r:9},{w:0,r:9}],
+      sideplank:[{w:0,r:20},{w:0,r:20}],
+    }
+  });
+}
+
+// ---------- Helpers ----------
+function isoToday() { const d = new Date(); return d.toISOString().slice(0,10); }
+function prettyDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" });
+}
+function lastSession(day) {
+  const list = data.sessions.filter(s => s.day === day);
+  return list.length ? list[list.length - 1] : null;
+}
+function unitLabel(ex) { return ex.type === "sec" ? "sec" : (ex.type === "bw" ? "reps" : "kg"); }
+
+// Suggestion based on last session
+function suggestion(ex, last) {
+  if (!last || !last.ex[ex.id]) return { cls:"new", text:"First time — start light" };
+  const sets = last.ex[ex.id];
+  const reps = sets.map(s => +s.r || 0);
+  const allTop = reps.every(r => r >= ex.hi);
+  const allMin = reps.every(r => r >= ex.lo);
+  if (ex.type === "bw" || ex.type === "sec") {
+    return allTop ? { cls:"up", text:"Solid — add a set or hold longer" }
+                  : { cls:"hold", text:"Repeat — build the time" };
+  }
+  if (allTop) return { cls:"up", text:"Ready to add weight (≈+2.5 kg)" };
+  if (allMin) return { cls:"hold", text:"Hold weight — push the top reps" };
+  return { cls:"hold", text:"Hold weight — chase the rep target" };
+}
+
+// ---------- Build draft for a day (prefilled from last session) ----------
+function buildDraft(day) {
+  const last = lastSession(day);
+  draft = {};
+  PLAN[day].ex.forEach(ex => {
+    const prev = last && last.ex[ex.id];
+    draft[ex.id] = [];
+    for (let i = 0; i < ex.sets; i++) {
+      const p = prev && prev[i];
+      draft[ex.id].push({ w: p ? p.w : "", r: p ? p.r : "" });
+    }
+  });
+}
+
+// ---------- Render ----------
+const view = document.getElementById("view");
+const savebar = document.getElementById("savebar");
+
+function render() {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("on", t.dataset.tab === currentTab));
+  if (currentTab === "log") renderLog();
+  else if (currentTab === "history") renderHistory();
+  else renderProgress();
+  savebar.style.display = currentTab === "log" ? "block" : "none";
+}
+
+function renderLog() {
+  let html = '<div class="days">';
+  DAYS.forEach(day => {
+    const last = lastSession(day);
+    const lastTxt = last ? `last ${prettyDate(last.date)}` : "not logged yet";
+    html += `<button class="day ${day===currentDay?"on":""}" data-day="${day}">
+      <div class="dname">${day}</div>
+      <div class="dfocus">${PLAN[day].focus}</div>
+      <div class="dlast">${lastTxt}</div>
+    </button>`;
+  });
+  html += "</div>";
+
+  const last = lastSession(currentDay);
+  PLAN[currentDay].ex.forEach(ex => {
+    const sug = suggestion(ex, last);
+    const targetStr = ex.type === "sec"
+      ? `${ex.sets} × ${ex.lo}–${ex.hi}s`
+      : (ex.lo === ex.hi ? `${ex.sets} × ${ex.lo}` : `${ex.sets} × ${ex.lo}–${ex.hi}`);
+    const u = unitLabel(ex);
+    const showWeight = ex.type === "kg";
+
+    let rows = `<div class="set-head"><span></span><span>${showWeight?"weight":"&nbsp;"}</span><span>${u}</span></div>`;
+    draft[ex.id].forEach((s, i) => {
+      rows += `<div class="set-row">
+        <div class="set-no">${i+1}</div>
+        ${showWeight
+          ? `<div class="field"><input inputmode="decimal" data-ex="${ex.id}" data-i="${i}" data-k="w" value="${s.w}" placeholder="–"><span class="unit">kg</span></div>`
+          : `<div class="field"><input value="BW" disabled style="color:var(--ink-faint)"></div>`}
+        <div class="field"><input inputmode="numeric" data-ex="${ex.id}" data-i="${i}" data-k="r" value="${s.r}" placeholder="–"><span class="unit">${u==="kg"?"reps":u}</span></div>
+      </div>`;
+    });
+
+    html += `<div class="ex">
+      <div class="ex-top"><div class="ex-name">${ex.name}</div><div class="ex-target">${targetStr}</div></div>
+      ${ex.note ? `<div class="ex-note">${ex.note}</div>` : ""}
+      <span class="chip ${sug.cls}">${sug.text}</span>
+      <div class="sets">${rows}</div>
+    </div>`;
+  });
+
+  view.innerHTML = html;
+
+  view.querySelectorAll(".day").forEach(b => b.onclick = () => {
+    currentDay = b.dataset.day; buildDraft(currentDay); render();
+  });
+  view.querySelectorAll("input[data-ex]").forEach(inp => {
+    inp.oninput = () => { draft[inp.dataset.ex][+inp.dataset.i][inp.dataset.k] = inp.value; };
+  });
+}
+
+async function saveSession() {
+  const exObj = {};
+  let any = false;
+  PLAN[currentDay].ex.forEach(ex => {
+    exObj[ex.id] = draft[ex.id].map(s => {
+      const w = ex.type === "kg" ? (s.w === "" ? "" : +s.w) : 0;
+      const r = s.r === "" ? "" : +s.r;
+      if (r !== "") any = true;
+      return { w, r };
+    });
+  });
+  const hint = document.getElementById("saveHint");
+  if (!any) { hint.textContent = "Enter at least one set first."; return; }
+
+  // Replace a same-day same-type entry made today, else append
+  const today = isoToday();
+  const idx = data.sessions.findIndex(s => s.date === today && s.day === currentDay);
+  const entry = { date: today, day: currentDay, ex: exObj };
+  if (idx >= 0) data.sessions[idx] = entry; else data.sessions.push(entry);
+
+  const ok = await persist();
+  hint.textContent = ok ? "Saved ✓  — carried into your history" : "Couldn't save — try again";
+  if (ok) setTimeout(() => { hint.textContent = ""; render(); }, 1200);
+}
+
+function renderHistory() {
+  if (data.sessions.length === 0) {
+    view.innerHTML = `<div class="empty"><div class="big">No sessions yet</div>Log a workout and it'll show up here.</div>`;
+    return;
+  }
+  const sorted = [...data.sessions].sort((a,b) => b.date.localeCompare(a.date));
+  let html = "";
+  sorted.forEach((s, si) => {
+    const dayPlan = PLAN[s.day];
+    let body = "";
+    if (dayPlan) dayPlan.ex.forEach(ex => {
+      const sets = s.ex[ex.id];
+      if (!sets) return;
+      const val = sets.map(x => {
+        if (ex.type === "kg") return `${x.w||"–"}×${x.r||"–"}`;
+        if (ex.type === "sec") return `${x.r||"–"}s`;
+        return `${x.r||"–"}`;
+      }).join("  ");
+      body += `<div class="hex"><span class="hn">${ex.name}</span><span class="hv">${val}</span></div>`;
+    });
+    html += `<div class="hentry" data-h="${si}">
+      <div class="hentry-top"><div class="hday">${s.day}</div><div class="hdate">${prettyDate(s.date)}</div></div>
+      <div class="hbody" id="hb-${si}">${body}</div>
+    </div>`;
+  });
+  html += `<button class="toolbtn" id="exportBtn">Export to CSV (copy for Google Sheets)</button>`;
+  html += `<div id="exportOut"></div>`;
+  html += `<div id="resetZone"><button class="toolbtn danger" id="resetBtn">Clear all data</button></div>`;
+  view.innerHTML = html;
+
+  view.querySelectorAll(".hentry").forEach(h => h.onclick = () => {
+    document.getElementById("hb-" + h.dataset.h).classList.toggle("open");
+  });
+  document.getElementById("exportBtn").onclick = exportCSV;
+  document.getElementById("resetBtn").onclick = armReset;
+}
+
+function buildCSV() {
+  const rows = [["date","day","exercise","set","weight_kg","reps_or_sec"]];
+  data.sessions.forEach(s => {
+    const dp = PLAN[s.day];
+    if (!dp) return;
+    dp.ex.forEach(ex => {
+      const sets = s.ex[ex.id]; if (!sets) return;
+      sets.forEach((x, i) => rows.push([s.date, s.day, ex.name, i+1, ex.type==="kg"?(x.w||""):"BW", x.r||""]));
+    });
+  });
+  return rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+}
+
+async function exportCSV() {
+  const csv = buildCSV();
+  let copied = false;
+  try { await navigator.clipboard.writeText(csv); copied = true; } catch (e) { /* clipboard blocked — fall back to manual copy */ }
+  const out = document.getElementById("exportOut");
+  out.innerHTML = `<div class="csvhint">${copied
+      ? "Copied to clipboard ✓ — open a Google Sheet and paste. Or copy again from the box below."
+      : "Tap inside the box, select all, and copy — then paste into a Google Sheet."}</div>
+    <textarea class="csvbox" readonly>${csv.replace(/</g,"&lt;")}</textarea>`;
+  const ta = out.querySelector("textarea");
+  ta.focus(); ta.select();
+}
+
+function armReset() {
+  const zone = document.getElementById("resetZone");
+  zone.innerHTML = `<div class="confirm">Clear every logged session? This can't be undone.</div>
+    <button class="toolbtn danger" id="resetYes">Yes, clear everything</button>
+    <button class="toolbtn" id="resetNo">Cancel</button>`;
+  document.getElementById("resetYes").onclick = doReset;
+  document.getElementById("resetNo").onclick = () => render();
+}
+
+async function doReset() {
+  data = { sessions: [], seeded: true };   // stay empty, don't re-seed on reload
+  await persist();
+  buildDraft(currentDay);
+  render();
+}
+
+function renderProgress() {
+  const weighted = [];
+  DAYS.forEach(day => PLAN[day].ex.forEach(ex => { if (ex.type === "kg") weighted.push({ day, ex }); }));
+  let html = "";
+  let shown = 0;
+  weighted.forEach(({day, ex}) => {
+    const hist = data.sessions.filter(s => s.day === day && s.ex[ex.id])
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .map(s => {
+        const sets = s.ex[ex.id];
+        const top = Math.max(...sets.map(x => +x.w || 0));
+        return { date: s.date, w: top };
+      });
+    if (hist.length === 0) return;
+    shown++;
+    const max = Math.max(...hist.map(h => h.w), 1);
+    let bars = "", dates = "";
+    hist.slice(-6).forEach((h, i, arr) => {
+      const isLast = i === arr.length - 1;
+      const ht = Math.max(8, (h.w / max) * 100);
+      bars += `<div class="pbar ${isLast?"last":""}" style="height:${ht}%"><span class="pv">${h.w}</span></div>`;
+      dates += `<span>${prettyDate(h.date).split(" ").slice(1).join(" ")}</span>`;
+    });
+    html += `<div class="pcard"><div class="pname">${ex.name} <span style="color:var(--ink-faint);font-weight:400">· ${day}</span></div>
+      <div class="ptrack">${bars}</div><div class="pdates">${dates}</div></div>`;
+  });
+  if (shown === 0) html = `<div class="empty"><div class="big">No progress to chart yet</div>Log a couple of sessions and your top working weight per exercise will plot here.</div>`;
+  view.innerHTML = html;
+}
+
+// ---------- Tabs + save ----------
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { currentTab = t.dataset.tab; render(); });
+document.getElementById("saveBtn").onclick = saveSession;
+
+// ---------- Boot ----------
+(async () => {
+  await load();
+  buildDraft(currentDay);
+  render();
+})();
+</script>
