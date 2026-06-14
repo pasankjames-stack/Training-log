@@ -382,7 +382,7 @@ function renderLog() {
     const u = unitLabel(ex);
     const showWeight = ex.type === "kg";
 
-    let rows = `<div class="set-head"><span></span><span>${showWeight?"weight":"&nbsp;"}</span><span>${u}</span></div>`;
+    let rows = `<div class="set-head"><span></span><span>${showWeight?"weight":"&nbsp;"}</span><span>${u==="kg"?"reps":u}</span></div>`;
     draft[ex.id].forEach((s, i) => {
       rows += `<div class="set-row">
         <div class="set-no">${i+1}</div>
