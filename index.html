@@ -110,6 +110,16 @@
   .set-head span { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
   .set-head span:first-child { visibility: hidden; }
 
+  .setctl { display: flex; gap: 8px; margin-top: 10px; }
+  .setbtn {
+    flex: 1; border: 1.5px dashed var(--line); background: transparent; border-radius: 10px;
+    padding: 9px; font-family: var(--display); font-weight: 600; font-size: 12.5px;
+    color: var(--ink-soft); cursor: pointer; transition: .15s;
+  }
+  .setbtn:disabled { opacity: .35; cursor: default; }
+  .setbtn.add { color: var(--accent-ink); border-color: rgba(240,82,30,.35); }
+  .setbtn.add:active { background: rgba(240,82,30,.06); }
+
   /* ---- Save bar ---- */
   .savebar {
     position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
@@ -340,8 +350,9 @@ function buildDraft(day) {
   draft = {};
   PLAN[day].ex.forEach(ex => {
     const prev = last && last.ex[ex.id];
+    const n = prev ? prev.length : ex.sets;   // start with however many sets you did last time
     draft[ex.id] = [];
-    for (let i = 0; i < ex.sets; i++) {
+    for (let i = 0; i < n; i++) {
       const p = prev && prev[i];
       draft[ex.id].push({ w: p ? p.w : "", r: p ? p.r : "" });
     }
@@ -398,6 +409,10 @@ function renderLog() {
       ${ex.note ? `<div class="ex-note">${ex.note}</div>` : ""}
       <span class="chip ${sug.cls}">${sug.text}</span>
       <div class="sets">${rows}</div>
+      <div class="setctl">
+        <button class="setbtn rem" data-rem="${ex.id}" ${draft[ex.id].length<=1?"disabled":""}>− Remove set</button>
+        <button class="setbtn add" data-add="${ex.id}">+ Add set</button>
+      </div>
     </div>`;
   });
 
@@ -408,6 +423,13 @@ function renderLog() {
   });
   view.querySelectorAll("input[data-ex]").forEach(inp => {
     inp.oninput = () => { draft[inp.dataset.ex][+inp.dataset.i][inp.dataset.k] = inp.value; };
+  });
+  view.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    draft[b.dataset.add].push({ w:"", r:"" }); render();
+  });
+  view.querySelectorAll("[data-rem]").forEach(b => b.onclick = () => {
+    const arr = draft[b.dataset.rem];
+    if (arr.length > 1) { arr.pop(); render(); }
   });
 }
 
