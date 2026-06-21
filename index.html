@@ -172,6 +172,20 @@
   .chart { width: 100%; height: auto; display: block; }
   .axis { font-family: var(--mono); font-size: 9px; fill: var(--ink-faint); }
   .seclabel { font-family: var(--display); font-weight: 700; font-size: 14px; margin: 16px 2px 9px; }
+  .mealsnap { display:flex; flex-direction:column; align-items:center; gap:3px; width:100%;
+  border:1.5px dashed rgba(14,158,144,.4); background:rgba(14,158,144,.04); border-radius:16px;
+  padding:22px 16px; cursor:pointer; margin-bottom:14px; text-align:center; }
+.mealsnap:active { background:rgba(14,158,144,.08); }
+.ms-text { font-family:var(--display); font-weight:700; font-size:15px; color:var(--accent-ink); margin-top:4px; }
+.ms-sub { font-size:11.5px; color:var(--ink-soft); }
+.mealhint { text-align:center; font-size:11.5px; color:var(--ink-soft); min-height:14px; margin:-6px 0 12px; }
+.mealentry { background:var(--card); border-radius:14px; padding:13px 15px; margin-bottom:9px; box-shadow:var(--shadow); }
+.me-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.me-label { font-family:var(--display); font-weight:700; font-size:14.5px; }
+.me-time { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
+.me-macros { display:flex; gap:16px; margin-top:7px; }
+.me-mac { font-size:12px; color:var(--ink-soft); }
+.me-mac b { font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:700; }
 
   .toolbtn {
     width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
@@ -220,6 +234,7 @@
   <div class="tabs">
     <button class="tab on" data-tab="log">Log</button>
     <button class="tab" data-tab="history">History</button>
+    <button class="tab" data-tab="meals">Meals</button>
     <button class="tab" data-tab="dashboard">Dashboard</button>
     <button class="tab" data-tab="edit">Edit</button>
   </div>
@@ -253,6 +268,7 @@ const STORE_KEY = "ulp-tracker-v1";
 // Paste your Apps Script web-app URL between the quotes to turn on
 // auto-saving to your Google Sheet. Leave it empty to keep sync off.
 const SHEET_SYNC_URL = "https://script.google.com/macros/s/AKfycbxB6ZMyoix4ygEgL5TzXNN0uNX_bVd9uy5D_bKDwy0Z9i3sZSE7z7crlOI3LqIcBKft/exec";
+const APP_TOKEN = "k7mPq2xRv9tLw4nB8sZ";
 // ==========================================
 
 // ---------- The plan ----------
@@ -464,6 +480,7 @@ function render() {
   if (currentTab === "log") renderLog();
   else if (currentTab === "history") renderHistory();
   else if (currentTab === "dashboard") renderDashboard();
+  else if (currentTab === "meals") renderMeals();
   else renderEdit();
   savebar.style.display = currentTab === "log" ? "block" : "none";
 }
@@ -866,13 +883,130 @@ function armResetPlan() {
   document.getElementById("rpNo").onclick = () => render();
 }
 
+const MEALS_KEY = "ulp-meals-v1";
+let meals = [];
+let mealBusy = false;
+
+function loadMealsCache() {
+  try { const v = localStorage.getItem(MEALS_KEY); if (v) meals = JSON.parse(v); } catch (e) {}
+}
+function cacheMeals() { try { localStorage.setItem(MEALS_KEY, JSON.stringify(meals)); } catch (e) {} }
+
+function fileToCompressedBase64(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.width, h = img.height;
+      if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL("image/jpeg", quality).split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("img")); };
+    img.src = url;
+  });
+}
+
+function postMealPhoto(b64, ts, date) {
+  try {
+    fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "mealPhoto", token: APP_TOKEN, ts, date, image: b64 }) });
+  } catch (e) {}
+}
+
+function pollForMeal(ts, tries, cb) {
+  jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
+    if (!err && payload && payload.meals) {
+      const found = payload.meals.find(r => +r[0] === ts);
+      if (found) {
+        meals = payload.meals.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+        cacheMeals(); cb(null, found); return;
+      }
+    }
+    if (tries <= 0) { cb(new Error("timeout")); return; }
+    setTimeout(() => pollForMeal(ts, tries - 1, cb), 2500);
+  });
+}
+
+function fetchMeals(cb) {
+  if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
+  jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
+    if (!err && payload && payload.meals) {
+      meals = payload.meals.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+      cacheMeals();
+    }
+    if (cb) cb();
+  });
+}
+function refreshMeals() { fetchMeals(() => { if (currentTab === "meals") renderMeals(); }); }
+
+async function onMealPhoto(e) {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const hint = () => document.getElementById("mealHint");
+  if (!SHEET_SYNC_URL) { const h = hint(); if (h) h.textContent = "Sheet sync isn't set up."; return; }
+  if (!APP_TOKEN) { const h = hint(); if (h) h.textContent = "Set your APP_TOKEN in the code first."; return; }
+  mealBusy = true; renderMeals();
+  let b64;
+  try { b64 = await fileToCompressedBase64(f, 1024, 0.7); }
+  catch (err) { mealBusy = false; renderMeals(); const h = hint(); if (h) h.textContent = "Couldn't read that photo — try again."; return; }
+  const ts = Date.now();
+  postMealPhoto(b64, ts, isoToday());
+  pollForMeal(ts, 6, (err) => {
+    mealBusy = false; renderMeals();
+    if (err) { const h = hint(); if (h) h.textContent = "Still processing — switch tabs and back to refresh shortly."; }
+  });
+}
+
+function renderMeals() {
+  const today = isoToday();
+  const todays = meals.filter(m => m.date === today);
+  const kcal = todays.reduce((a, m) => a + (+m.kcal || 0), 0);
+  const prot = todays.reduce((a, m) => a + (+m.protein || 0), 0);
+  let html = `<div class="stats">
+    <div class="stat"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ 2000 kcal</small></div></div>
+    <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ 135 g</small></div></div>
+  </div>`;
+  html += `<label class="mealsnap">
+    <input type="file" accept="image/*" capture="environment" id="mealFile" hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8a1 1 0 0 1 .83-.45h5.94a1 1 0 0 1 .83.45L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+    <span class="ms-text">${mealBusy ? "Analysing your photo…" : "Snap a meal"}</span>
+    <span class="ms-sub">${mealBusy ? "Claude is estimating — a few seconds" : "Photo → rough calorie & protein estimate"}</span>
+  </label>`;
+  html += `<div class="mealhint" id="mealHint"></div>`;
+  if (!meals.length) {
+    html += `<div class="empty"><div class="big">No meals logged yet</div>Snap your first meal and it'll show up here.</div>`;
+  } else {
+    meals.slice(0, 40).forEach(m => {
+      const d = new Date(m.ts);
+      const tt = isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" });
+      html += `<div class="mealentry">
+        <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span><span class="me-time">${tt}</span></div>
+        <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span></div>
+      </div>`;
+    });
+    html += `<div class="csvhint">Estimates are rough — portion and oil are hard to see in a photo. Good for the weekly trend, not the gram.</div>`;
+  }
+  view.innerHTML = html;
+  const file = document.getElementById("mealFile");
+  if (file) file.onchange = onMealPhoto;
+}
 // ---------- Tabs + save ----------
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => { currentTab = t.dataset.tab; editingDay = null; render(); });
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  currentTab = t.dataset.tab; editingDay = null; render();
+  if (currentTab === "meals") refreshMeals();
+});
 document.getElementById("saveBtn").onclick = saveSession;
 
 // ---------- Boot ----------
 (async () => {
   await load();
+  loadMealsCache();
   buildDraft(currentDay);
   render();
   syncPlanFromSheet();   // pull any routine edits made on other devices
