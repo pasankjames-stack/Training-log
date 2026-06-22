@@ -1106,7 +1106,12 @@ function renderMeals() {
     const cx = document.getElementById("mcCancel"); if (cx) cx.onclick = cancelMeal;
   }
 }
-
+// ---------- Tabs + save ----------
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  currentTab = t.dataset.tab; editingDay = null; render();
+  if (currentTab === "meals") refreshMeals();
+});
+document.getElementById("saveBtn").onclick = saveSession;
 // ---------- Boot ----------
 (async () => {
   await load();
