@@ -172,39 +172,41 @@
   .chart { width: 100%; height: auto; display: block; }
   .axis { font-family: var(--mono); font-size: 9px; fill: var(--ink-faint); }
   .seclabel { font-family: var(--display); font-weight: 700; font-size: 14px; margin: 16px 2px 9px; }
+
+  /* ---- Meals ---- */
   .mealsnap { display:flex; flex-direction:column; align-items:center; gap:3px; width:100%;
-  border:1.5px dashed rgba(14,158,144,.4); background:rgba(14,158,144,.04); border-radius:16px;
-  padding:22px 16px; cursor:pointer; margin-bottom:14px; text-align:center; }
-.mealsnap:active { background:rgba(14,158,144,.08); }
-.ms-text { font-family:var(--display); font-weight:700; font-size:15px; color:var(--accent-ink); margin-top:4px; }
-.ms-sub { font-size:11.5px; color:var(--ink-soft); }
-.mealhint { text-align:center; font-size:11.5px; color:var(--ink-soft); min-height:14px; margin:-6px 0 12px; }
-.mealentry { background:var(--card); border-radius:14px; padding:13px 15px; margin-bottom:9px; box-shadow:var(--shadow); }
-.me-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
-.me-label { font-family:var(--display); font-weight:700; font-size:14.5px; }
-.me-time { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
-.me-macros { display:flex; gap:16px; margin-top:7px; }
-.me-mac { font-size:12px; color:var(--ink-soft); }
-.me-mac b { font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:700; }
-.mealbusy { display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 16px; margin-bottom:14px; background:var(--card); border-radius:16px; box-shadow:var(--shadow); }
-.mb-spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:mbspin .8s linear infinite; }
-@keyframes mbspin { to { transform:rotate(360deg); } }
-.mb-text { font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); }
-.mealconfirm { background:var(--card); border-radius:16px; padding:15px; margin-bottom:14px; box-shadow:var(--shadow); }
-.mc-title { font-family:var(--display); font-weight:700; font-size:15px; margin-bottom:12px; }
-.mc-item { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
-.mc-item:first-of-type { border-top:none; padding-top:0; margin-top:0; }
-.mc-name { width:100%; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:14px; color:var(--ink); background:#FBFBFC; outline:none; margin-bottom:6px; }
-.mc-row { display:flex; gap:6px; align-items:center; }
-.mc-qty { width:64px; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--mono); font-size:14px; text-align:center; background:#FBFBFC; outline:none; }
-.mc-unit { flex:1; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:13.5px; background:#FBFBFC; outline:none; }
-.mc-name:focus, .mc-qty:focus, .mc-unit:focus, .mc-note:focus { border-color:var(--accent); background:#fff; }
-.mc-del { border:none; background:transparent; color:var(--ink-faint); font-size:15px; padding:6px 8px; cursor:pointer; }
-.mc-add { width:100%; border:1.5px dashed var(--line); background:transparent; border-radius:10px; padding:9px; margin-top:10px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
-.mc-note { width:100%; height:60px; border:1.5px solid var(--line); border-radius:10px; padding:10px; margin-top:10px; font-family:var(--body); font-size:13.5px; color:var(--ink); background:#FBFBFC; outline:none; resize:vertical; }
-.mc-actions { display:flex; gap:8px; margin-top:12px; }
-.mc-cancel { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:12px; font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); cursor:pointer; }
-.mc-confirm { flex:2; border:none; background:var(--accent); color:#fff; border-radius:11px; padding:12px; font-family:var(--display); font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(14,158,144,.25); }
+    border:1.5px dashed rgba(14,158,144,.4); background:rgba(14,158,144,.04); border-radius:16px;
+    padding:22px 16px; cursor:pointer; margin-bottom:14px; text-align:center; }
+  .mealsnap:active { background:rgba(14,158,144,.08); }
+  .ms-text { font-family:var(--display); font-weight:700; font-size:15px; color:var(--accent-ink); margin-top:4px; }
+  .ms-sub { font-size:11.5px; color:var(--ink-soft); }
+  .mealhint { text-align:center; font-size:11.5px; color:var(--ink-soft); min-height:14px; margin:-6px 0 12px; }
+  .mealentry { background:var(--card); border-radius:14px; padding:13px 15px; margin-bottom:9px; box-shadow:var(--shadow); }
+  .me-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .me-label { font-family:var(--display); font-weight:700; font-size:14.5px; }
+  .me-time { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
+  .me-macros { display:flex; gap:16px; margin-top:7px; }
+  .me-mac { font-size:12px; color:var(--ink-soft); }
+  .me-mac b { font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:700; }
+  .mealbusy { display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 16px; margin-bottom:14px; background:var(--card); border-radius:16px; box-shadow:var(--shadow); }
+  .mb-spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:mbspin .8s linear infinite; }
+  @keyframes mbspin { to { transform:rotate(360deg); } }
+  .mb-text { font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); }
+  .mealconfirm { background:var(--card); border-radius:16px; padding:15px; margin-bottom:14px; box-shadow:var(--shadow); }
+  .mc-title { font-family:var(--display); font-weight:700; font-size:15px; margin-bottom:12px; }
+  .mc-item { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+  .mc-item:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+  .mc-name { width:100%; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:14px; color:var(--ink); background:#FBFBFC; outline:none; margin-bottom:6px; }
+  .mc-row { display:flex; gap:6px; align-items:center; }
+  .mc-qty { width:64px; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--mono); font-size:14px; text-align:center; background:#FBFBFC; outline:none; }
+  .mc-unit { flex:1; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:13.5px; background:#FBFBFC; outline:none; }
+  .mc-name:focus, .mc-qty:focus, .mc-unit:focus, .mc-note:focus { border-color:var(--accent); background:#fff; }
+  .mc-del { border:none; background:transparent; color:var(--ink-faint); font-size:15px; padding:6px 8px; cursor:pointer; }
+  .mc-add { width:100%; border:1.5px dashed var(--line); background:transparent; border-radius:10px; padding:9px; margin-top:10px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
+  .mc-note { width:100%; height:60px; border:1.5px solid var(--line); border-radius:10px; padding:10px; margin-top:10px; font-family:var(--body); font-size:13.5px; color:var(--ink); background:#FBFBFC; outline:none; resize:vertical; }
+  .mc-actions { display:flex; gap:8px; margin-top:12px; }
+  .mc-cancel { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:12px; font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); cursor:pointer; }
+  .mc-confirm { flex:2; border:none; background:var(--accent); color:#fff; border-radius:11px; padding:12px; font-family:var(--display); font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(14,158,144,.25); }
 
   .toolbtn {
     width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
@@ -902,6 +904,7 @@ function armResetPlan() {
   document.getElementById("rpNo").onclick = () => render();
 }
 
+// ---------- Meals (photo → detect → confirm → estimate) ----------
 const MEALS_KEY = "ulp-meals-v1";
 let meals = [];
 let mealStage = "idle";        // idle | detecting | confirming | estimating
@@ -1106,12 +1109,14 @@ function renderMeals() {
     const cx = document.getElementById("mcCancel"); if (cx) cx.onclick = cancelMeal;
   }
 }
+
 // ---------- Tabs + save ----------
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
   currentTab = t.dataset.tab; editingDay = null; render();
   if (currentTab === "meals") refreshMeals();
 });
 document.getElementById("saveBtn").onclick = saveSession;
+
 // ---------- Boot ----------
 (async () => {
   await load();
