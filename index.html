@@ -490,10 +490,10 @@ function seed() {
 }
  
 // ---------- Helpers ----------
-function isoToday() { const d = new Date(); return d.toISOString().slice(0,10); }
-function prettyDate(iso) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" });
+function isoToday() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
 }
 function lastSession(day) {
   const list = data.sessions.filter(s => s.day === day);
