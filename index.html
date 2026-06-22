@@ -492,8 +492,12 @@ function seed() {
 // ---------- Helpers ----------
 function isoToday() {
   const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());   // shift to local, then read the date
   return d.toISOString().slice(0, 10);
+}
+function prettyDate(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, { weekday:"short", day:"numeric", month:"short" });
 }
 function lastSession(day) {
   const list = data.sessions.filter(s => s.day === day);
@@ -1469,6 +1473,23 @@ function renderWeight() {
  
 // ---------- Tabs + save ----------
 document.getElementById("saveBtn").onclick = saveSession;
+ 
+// ---------- Day rollover ----------
+// If the app is left open across midnight, "today" goes stale. Re-render
+// (and re-pull meals) whenever the local date changes — on a timer, when the
+// tab regains focus, and when it becomes visible again.
+let _lastSeenDay = isoToday();
+function checkDayRollover() {
+  const now = isoToday();
+  if (now !== _lastSeenDay) {
+    _lastSeenDay = now;
+    render();          // recompute today's totals everywhere
+    refreshMeals();    // re-pull so the new day starts clean
+  }
+}
+setInterval(checkDayRollover, 60 * 1000);        // catch midnight while open
+window.addEventListener("focus", checkDayRollover);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkDayRollover(); });
  
 // ---------- Boot ----------
 (async () => {
