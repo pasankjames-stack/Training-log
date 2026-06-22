@@ -49,7 +49,7 @@
   }
   h1 {
     font-family: var(--display); font-weight: 700; font-size: 27px;
-    margin: 2px 0 0; letter-spacing: -.01em; color: var(--accent);
+    margin: 2px 0 0; letter-spacing: -.01em; color: var(--accent); cursor: pointer;
   }
   .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; }
  
@@ -177,13 +177,14 @@
   .dotval { font-family: var(--mono); font-size: 10px; fill: var(--accent-ink); font-weight: 700; }
   .chartempty { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); padding: 8px 2px; }
   .navgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .navgrid .navtile { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 56px; }
   .navtile { text-align: left; border: 1.5px solid var(--line); background: var(--card); border-radius: 15px; padding: 15px 14px; cursor: pointer; box-shadow: var(--shadow); transition: .15s; position: relative; color: var(--ink); }
   .navtile:active { transform: translateY(1px); }
   .navtile.wide { grid-column: 1 / -1; }
   .navtile::after { content: "\203a"; position: absolute; top: 12px; right: 14px; color: var(--ink-faint); font-family: var(--display); font-size: 16px; }
   .navtile::after { content: none; }
   .navgrid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 9px; }
-  .navgrid3 .navtile { padding: 14px 12px; }
+  .navgrid3 .navtile { padding: 14px 12px; display: flex; align-items: center; justify-content: center; text-align: center; min-height: 56px; }
   .navgrid3 .nt-name { font-size: 14px; }
   .nt-name { display: block; font-family: var(--display); font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; }
   .nt-sub { display: block; font-size: 11.5px; color: var(--ink); margin-top: 2px; }
@@ -203,6 +204,13 @@
   .weighinput:focus { border-color: var(--accent); background: #fff; }
   .weighbtn { border: none; background: var(--accent); color: #fff; border-radius: 11px; padding: 12px 20px; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(14,158,144,.25); }
   .weighbtn:active { transform: translateY(1px); }
+  .stat.goaltap { cursor: pointer; position: relative; }
+  .stat.goaltap:active { background: #FBFBFC; }
+  .stat.goaledit { grid-column: 1 / -1; }
+  .goalinput { width: 100%; margin-top: 7px; border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); background: #fff; outline: none; }
+  .goalinput:focus { border-color: var(--accent); }
+  .goalsave { width: 100%; margin-top: 7px; border: none; background: var(--accent); color: #fff; border-radius: 9px; padding: 9px; font-family: var(--display); font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(14,158,144,.25); }
+  .goalsave:active { transform: translateY(1px); }
  
   /* ---- Exercise progress (in History) ---- */
   .excol { margin-bottom: 9px; }
@@ -302,7 +310,7 @@
  
 <div class="app">
   <header>
-    <h1>Health Track</h1>
+    <h1 id="homeTitle">Health Track</h1>
   </header>
  
   <div id="view"><div class="loading">Loading your log…</div></div>
@@ -558,13 +566,13 @@ function render() {
 }
  
 function goTab(tab) {
-  currentTab = tab; editingDay = null; render();
+  currentTab = tab; editingDay = null; goalEditing = false; render();
   if (tab === "meals") refreshMeals();
   else if (tab === "weight") refreshWeights();
 }
 function wireHome() {
-  const hb = document.getElementById("homeBtn");
-  if (hb) hb.onclick = () => { currentTab = "home"; editingDay = null; render(); };
+  const ht = document.getElementById("homeTitle");
+  if (ht) ht.onclick = () => { currentTab = "home"; editingDay = null; goalEditing = false; render(); };
 }
 function caloriesByDay() {
   const byDay = {};
@@ -680,26 +688,23 @@ function renderHome() {
   const wPts = sortedWeights().slice(-14).map(w => ({ label: prettyShort(w.date), value: w.kg }));
   html += `<div class="chartgrid">
     <div class="card"><h2>Volume / session</h2>
-      <div class="csub">Weight × reps</div>
       ${scatterChart(volPts, { height: 120, empty: "No sessions yet." })}</div>
     <div class="card"><h2>Weight</h2>
-      <div class="csub">Goal ${WEIGHT_GOAL} kg</div>
       ${scatterChart(wPts, { height: 120, zeroBase: false, target: WEIGHT_GOAL, unit: " kg", empty: "No data yet." })}</div>
   </div>`;
  
   const calPts = caloriesByDay().slice(-14).map(d => ({ label: prettyShort(d.date), value: d.kcal }));
   html += `<div class="card"><h2>Calories per day</h2>
-    <div class="csub">Total logged from your meals each day</div>
     ${scatterChart(calPts, { target: 2000, height: 170, empty: "Snap a meal to start tracking." })}</div>`;
  
   html += `<div class="navgrid">
-      <button class="navtile" data-go="log"><span class="nt-name">Log</span><span class="nt-sub">Record today's session</span></button>
-      <button class="navtile" data-go="meals"><span class="nt-name">Meals</span><span class="nt-sub">Snap &amp; track food</span></button>
+      <button class="navtile" data-go="log"><span class="nt-name">Log</span></button>
+      <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button>
     </div>
     <div class="navgrid3">
-      <button class="navtile" data-go="history"><span class="nt-name">History</span><span class="nt-sub">Progress</span></button>
-      <button class="navtile" data-go="edit"><span class="nt-name">Routines</span><span class="nt-sub">Your plan</span></button>
-      <button class="navtile" data-go="weight"><span class="nt-name">Weight</span><span class="nt-sub">Bodyweight</span></button>
+      <button class="navtile" data-go="history"><span class="nt-name">History</span></button>
+      <button class="navtile" data-go="edit"><span class="nt-name">Routines</span></button>
+      <button class="navtile" data-go="weight"><span class="nt-name">Weight</span></button>
     </div>`;
  
   view.innerHTML = html;
@@ -708,7 +713,7 @@ function renderHome() {
  
 function renderLog() {
   reconcileDraft(currentDay);
-  let html = '<button class="backbtn" id="homeBtn">\u2190 Home</button><div class="days">';
+  let html = '<div class="days">';
   DAYS.forEach(day => {
     const last = lastSession(day);
     const lastTxt = last ? `last ${prettyDate(last.date)}` : "not logged yet";
@@ -799,11 +804,11 @@ async function saveSession() {
  
 function renderHistory() {
   if (data.sessions.length === 0) {
-    view.innerHTML = `<button class="backbtn" id="homeBtn">\u2190 Home</button><div class="empty"><div class="big">No sessions yet</div>Log a workout and it'll show up here.</div>`;
+    view.innerHTML = `<div class="empty"><div class="big">No sessions yet</div>Log a workout and it'll show up here.</div>`;
     return;
   }
   const sorted = [...data.sessions].sort((a,b) => b.date.localeCompare(a.date));
-  let html = '<button class="backbtn" id="homeBtn">\u2190 Home</button>';
+  let html = '';
   sorted.forEach((s, si) => {
     const dayPlan = plan[s.day];
     let body = "";
@@ -991,7 +996,7 @@ function renderEdit() {
 }
  
 function renderEditDayList() {
-  let html = `<button class="backbtn" id="homeBtn">\u2190 Home</button><div class="editintro">Build your routine here. Changes apply instantly and save on this device.</div>`;
+  let html = `<div class="editintro">Build your routine here. Changes apply instantly and save on this device.</div>`;
   DAYS.forEach(day => {
     const n = plan[day].ex.length;
     html += `<div class="edcard" data-eday="${escAttr(day)}">
@@ -1297,7 +1302,7 @@ function renderMeals() {
   const kcal = todays.reduce((a, m) => a + (+m.kcal || 0), 0);
   const prot = todays.reduce((a, m) => a + (+m.protein || 0), 0);
  
-  let html = `<button class="backbtn" id="homeBtn">\u2190 Home</button><div class="stats">
+  let html = `<div class="stats">
     <div class="stat"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ 2000 kcal</small></div></div>
     <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ 135 g</small></div></div>
   </div>`;
@@ -1313,12 +1318,10 @@ function renderMeals() {
         <input type="file" accept="image/*" capture="environment" id="mealFile" hidden>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8a1 1 0 0 1 .83-.45h5.94a1 1 0 0 1 .83.45L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
         <span class="ma-text">Snap a meal</span>
-        <span class="ma-sub">Photo → estimate</span>
       </label>
       <button class="mealact" id="mealManual">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
         <span class="ma-text">Add manually</span>
-        <span class="ma-sub">Describe → estimate</span>
       </button>
     </div>`;
   }
@@ -1379,8 +1382,37 @@ function renderMeals() {
  
 // ---------- Weight tracking (local) ----------
 const WEIGHT_KEY = "ulp-weight-v1";
-const WEIGHT_GOAL = 62.5;
+const GOAL_KEY = "ulp-goal-v1";
+let WEIGHT_GOAL = 62.5;   // default target; overridden by a saved value if present
+function loadGoal() {
+  try { const v = localStorage.getItem(GOAL_KEY); if (v != null && !isNaN(+v) && +v > 0) WEIGHT_GOAL = +v; } catch (e) {}
+}
+function setGoal(kg) {
+  WEIGHT_GOAL = kg;
+  try { localStorage.setItem(GOAL_KEY, String(kg)); } catch (e) {}
+  pushGoalToSheet(kg);
+}
+function pushGoalToSheet(kg) {
+  if (!SHEET_SYNC_URL) return;
+  try {
+    fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveGoal", token: APP_TOKEN, kg }) });
+  } catch (e) { /* offline — local copy is still saved */ }
+}
+function fetchGoal(cb) {
+  if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
+  jsonp(SHEET_SYNC_URL + "?action=getGoal", (err, payload) => {
+    if (!err && payload && payload.goal != null && payload.goal !== "" && !isNaN(+payload.goal) && +payload.goal > 0) {
+      WEIGHT_GOAL = +payload.goal;
+      try { localStorage.setItem(GOAL_KEY, String(WEIGHT_GOAL)); } catch (e) {}
+    }
+    if (cb) cb();
+  });
+}
+function refreshGoal() { fetchGoal(() => { if (currentTab === "home" || currentTab === "weight") render(); }); }
 let weights = [];   // [{date, kg}]
+let goalEditing = false;   // is the Goal stat showing its inline editor?
 function loadWeightCache() { try { const v = localStorage.getItem(WEIGHT_KEY); if (v) weights = JSON.parse(v); } catch (e) {} }
 function cacheWeights() { try { localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights)); } catch (e) {} }
 function sortedWeights() { return [...weights].sort((a, b) => a.date.localeCompare(b.date)); }
@@ -1430,15 +1462,22 @@ function renderWeight() {
   const dPrev = (latest && prev) ? (latest.kg - prev.kg) : null;
   const toGoal = cur != null ? (cur - WEIGHT_GOAL) : null;
  
-  let html = `<button class="backbtn" id="homeBtn">\u2190 Home</button>`;
+  let html = '';
+  const goalCell = goalEditing
+    ? `<div class="stat goaledit">
+        <div class="lbl">Goal</div>
+        <input id="gInput" class="goalinput" inputmode="decimal" value="${WEIGHT_GOAL}">
+        <button class="goalsave" id="gSave">Save</button>
+      </div>`
+    : `<div class="stat goaltap" id="goalStat"><div class="lbl">Goal</div><div class="val">${WEIGHT_GOAL} <small>kg</small></div></div>`;
   html += `<div class="stats">
     <div class="stat"><div class="lbl">Current</div><div class="val">${cur != null ? cur : "\u2014"} <small>kg</small></div></div>
-    <div class="stat"><div class="lbl">Goal</div><div class="val">${WEIGHT_GOAL} <small>kg</small></div></div>
+    ${goalCell}
     <div class="stat"><div class="lbl">Since last</div><div class="val" style="font-size:18px">${dPrev != null ? (dPrev > 0 ? "+" : "") + dPrev.toFixed(1) + " kg" : "\u2014"}</div></div>
     <div class="stat"><div class="lbl">To goal</div><div class="val" style="font-size:18px">${toGoal != null ? (toGoal > 0.05 ? toGoal.toFixed(1) + " kg" : "reached") : "\u2014"}</div></div>
   </div>`;
  
-  html += `<div class="card"><h2>Log today's weight</h2>
+  html += `<div class="card"><h2>Weekly weight log</h2>
     <div class="weighrow">
       <input id="wInput" class="weighinput" inputmode="decimal" placeholder="${cur != null ? cur + " kg" : "e.g. 70.5"}">
       <button class="weighbtn" id="wSave">Save</button>
@@ -1447,7 +1486,6 @@ function renderWeight() {
  
   const pts = s.slice(-14).map(w => ({ label: prettyShort(w.date), value: w.kg }));
   html += `<div class="card"><h2>Weight over time</h2>
-    <div class="csub">Tracking toward your ${WEIGHT_GOAL} kg goal</div>
     ${scatterChart(pts, { zeroBase: false, target: WEIGHT_GOAL, unit: " kg", empty: "Log your weight to start the trend." })}</div>`;
  
   if (s.length) {
@@ -1468,6 +1506,25 @@ function renderWeight() {
   };
   btn.onclick = save;
   inp.onkeydown = (e) => { if (e.key === "Enter") save(); };
+ 
+  if (goalEditing) {
+    const gInp = document.getElementById("gInput");
+    const gBtn = document.getElementById("gSave");
+    const gSave = () => {
+      const v = parseFloat(gInp.value);
+      if (isNaN(v) || v <= 0) { gInp.focus(); return; }
+      setGoal(Math.round(v * 10) / 10);
+      goalEditing = false;
+      render();
+    };
+    gBtn.onclick = gSave;
+    gInp.onkeydown = (e) => { if (e.key === "Enter") gSave(); else if (e.key === "Escape") { goalEditing = false; render(); } };
+    gInp.focus();
+    gInp.select();
+  } else {
+    const gStat = document.getElementById("goalStat");
+    if (gStat) gStat.onclick = () => { goalEditing = true; render(); };
+  }
   wireHome();
 }
  
@@ -1496,10 +1553,12 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
   await load();
   loadMealsCache();
   loadWeightCache();
+  loadGoal();
   buildDraft(currentDay);
   render();
   syncPlanFromSheet();   // pull any routine edits made on other devices
   refreshMeals();        // pull logged meals so the home graphs fill in
   refreshWeights();      // pull logged bodyweight from the sheet
+  refreshGoal();         // pull the target weight from the sheet
 })();
 </script>
