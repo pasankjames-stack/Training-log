@@ -186,6 +186,25 @@
 .me-macros { display:flex; gap:16px; margin-top:7px; }
 .me-mac { font-size:12px; color:var(--ink-soft); }
 .me-mac b { font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:700; }
+.mealbusy { display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 16px; margin-bottom:14px; background:var(--card); border-radius:16px; box-shadow:var(--shadow); }
+.mb-spin { width:26px; height:26px; border:3px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:mbspin .8s linear infinite; }
+@keyframes mbspin { to { transform:rotate(360deg); } }
+.mb-text { font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); }
+.mealconfirm { background:var(--card); border-radius:16px; padding:15px; margin-bottom:14px; box-shadow:var(--shadow); }
+.mc-title { font-family:var(--display); font-weight:700; font-size:15px; margin-bottom:12px; }
+.mc-item { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+.mc-item:first-of-type { border-top:none; padding-top:0; margin-top:0; }
+.mc-name { width:100%; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:14px; color:var(--ink); background:#FBFBFC; outline:none; margin-bottom:6px; }
+.mc-row { display:flex; gap:6px; align-items:center; }
+.mc-qty { width:64px; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--mono); font-size:14px; text-align:center; background:#FBFBFC; outline:none; }
+.mc-unit { flex:1; border:1.5px solid var(--line); border-radius:9px; padding:9px 10px; font-family:var(--body); font-size:13.5px; background:#FBFBFC; outline:none; }
+.mc-name:focus, .mc-qty:focus, .mc-unit:focus, .mc-note:focus { border-color:var(--accent); background:#fff; }
+.mc-del { border:none; background:transparent; color:var(--ink-faint); font-size:15px; padding:6px 8px; cursor:pointer; }
+.mc-add { width:100%; border:1.5px dashed var(--line); background:transparent; border-radius:10px; padding:9px; margin-top:10px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
+.mc-note { width:100%; height:60px; border:1.5px solid var(--line); border-radius:10px; padding:10px; margin-top:10px; font-family:var(--body); font-size:13.5px; color:var(--ink); background:#FBFBFC; outline:none; resize:vertical; }
+.mc-actions { display:flex; gap:8px; margin-top:12px; }
+.mc-cancel { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:12px; font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); cursor:pointer; }
+.mc-confirm { flex:2; border:none; background:var(--accent); color:#fff; border-radius:11px; padding:12px; font-family:var(--display); font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(14,158,144,.25); }
 
   .toolbtn {
     width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
@@ -885,7 +904,10 @@ function armResetPlan() {
 
 const MEALS_KEY = "ulp-meals-v1";
 let meals = [];
-let mealBusy = false;
+let mealStage = "idle";        // idle | detecting | confirming | estimating
+let pendingTs = null;
+let pendingItems = [];
+let pendingNote = "";
 
 function loadMealsCache() {
   try { const v = localStorage.getItem(MEALS_KEY); if (v) meals = JSON.parse(v); } catch (e) {}
@@ -911,14 +933,37 @@ function fileToCompressedBase64(file, maxDim, quality) {
   });
 }
 
-function postMealPhoto(b64, ts, date) {
+function mealHint(msg) { const h = document.getElementById("mealHint"); if (h) h.textContent = msg || ""; }
+
+function postDetect(b64, ts) {
   try {
     fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "mealPhoto", token: APP_TOKEN, ts, date, image: b64 }) });
+      body: JSON.stringify({ action: "detectMeal", token: APP_TOKEN, ts, image: b64 }) });
   } catch (e) {}
 }
+function pollDetect(ts, tries) {
+  jsonp(SHEET_SYNC_URL + "?action=getPending&ts=" + ts, (err, payload) => {
+    if (mealStage !== "detecting" || pendingTs !== ts) return;
+    if (!err && payload && payload.items) {
+      pendingItems = payload.items.map(it => ({ name: it.name || "", qty: (it.qty != null ? it.qty : 1), unit: it.unit || "" }));
+      pendingNote = "";
+      mealStage = "confirming";
+      renderMeals();
+      return;
+    }
+    if (tries <= 0) { mealStage = "idle"; renderMeals(); mealHint("Couldn't detect that photo — check Executions, or try again."); return; }
+    setTimeout(() => pollDetect(ts, tries - 1), 2500);
+  });
+}
 
+function postFinalize(ts, date, items, note) {
+  try {
+    fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "finalizeMeal", token: APP_TOKEN, ts, date, items, note }) });
+  } catch (e) {}
+}
 function pollForMeal(ts, tries, cb) {
   jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
     if (!err && payload && payload.meals) {
@@ -943,24 +988,64 @@ function fetchMeals(cb) {
     if (cb) cb();
   });
 }
-function refreshMeals() { fetchMeals(() => { if (currentTab === "meals") renderMeals(); }); }
+function refreshMeals() { fetchMeals(() => { if (currentTab === "meals" && mealStage === "idle") renderMeals(); }); }
 
 async function onMealPhoto(e) {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
-  const hint = () => document.getElementById("mealHint");
-  if (!SHEET_SYNC_URL) { const h = hint(); if (h) h.textContent = "Sheet sync isn't set up."; return; }
-  if (!APP_TOKEN) { const h = hint(); if (h) h.textContent = "Set your APP_TOKEN in the code first."; return; }
-  mealBusy = true; renderMeals();
+  if (!SHEET_SYNC_URL) { mealHint("Sheet sync isn't set up."); return; }
+  if (!APP_TOKEN) { mealHint("Set your APP_TOKEN in the code first."); return; }
   let b64;
   try { b64 = await fileToCompressedBase64(f, 1024, 0.7); }
-  catch (err) { mealBusy = false; renderMeals(); const h = hint(); if (h) h.textContent = "Couldn't read that photo — try again."; return; }
-  const ts = Date.now();
-  postMealPhoto(b64, ts, isoToday());
+  catch (err) { mealHint("Couldn't read that photo — try again."); return; }
+  pendingTs = Date.now();
+  mealStage = "detecting";
+  renderMeals();
+  postDetect(b64, pendingTs);
+  pollDetect(pendingTs, 6);
+}
+
+function confirmMeal() {
+  const ts = pendingTs, date = isoToday();
+  const items = pendingItems.slice(), note = pendingNote;
+  mealStage = "estimating";
+  renderMeals();
+  postFinalize(ts, date, items, note);
   pollForMeal(ts, 6, (err) => {
-    mealBusy = false; renderMeals();
-    if (err) { const h = hint(); if (h) h.textContent = "Still processing — switch tabs and back to refresh shortly."; }
+    if (pendingTs !== ts) return;
+    mealStage = "idle"; pendingTs = null; pendingItems = []; pendingNote = "";
+    renderMeals();
+    if (err) mealHint("Still estimating — switch tabs and back to refresh.");
   });
+}
+
+function cancelMeal() {
+  mealStage = "idle"; pendingTs = null; pendingItems = []; pendingNote = "";
+  renderMeals();
+}
+
+function mealConfirmHtml() {
+  let rows = "";
+  pendingItems.forEach((it, i) => {
+    rows += `<div class="mc-item">
+      <input class="mc-name" data-i="${i}" data-f="name" value="${escAttr(it.name)}" placeholder="Food">
+      <div class="mc-row">
+        <input class="mc-qty" data-i="${i}" data-f="qty" inputmode="decimal" value="${escAttr(String(it.qty))}" placeholder="qty">
+        <input class="mc-unit" data-i="${i}" data-f="unit" value="${escAttr(it.unit)}" placeholder="unit">
+        <button class="mc-del" data-del="${i}">✕</button>
+      </div>
+    </div>`;
+  });
+  return `<div class="mealconfirm">
+    <div class="mc-title">Confirm what you ate</div>
+    ${rows}
+    <button class="mc-add" id="mcAdd">+ Add item</button>
+    <textarea class="mc-note" id="mcNote" placeholder="Anything to add? e.g. extra olive oil, large portion">${escHtml(pendingNote)}</textarea>
+    <div class="mc-actions">
+      <button class="mc-cancel" id="mcCancel">Cancel</button>
+      <button class="mc-confirm" id="mcConfirm">Confirm &amp; estimate</button>
+    </div>
+  </div>`;
 }
 
 function renderMeals() {
@@ -968,17 +1053,28 @@ function renderMeals() {
   const todays = meals.filter(m => m.date === today);
   const kcal = todays.reduce((a, m) => a + (+m.kcal || 0), 0);
   const prot = todays.reduce((a, m) => a + (+m.protein || 0), 0);
+
   let html = `<div class="stats">
     <div class="stat"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ 2000 kcal</small></div></div>
     <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ 135 g</small></div></div>
   </div>`;
-  html += `<label class="mealsnap">
-    <input type="file" accept="image/*" capture="environment" id="mealFile" hidden>
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8a1 1 0 0 1 .83-.45h5.94a1 1 0 0 1 .83.45L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
-    <span class="ms-text">${mealBusy ? "Analysing your photo…" : "Snap a meal"}</span>
-    <span class="ms-sub">${mealBusy ? "Claude is estimating — a few seconds" : "Photo → rough calorie & protein estimate"}</span>
-  </label>`;
+
+  if (mealStage === "confirming") {
+    html += mealConfirmHtml();
+  } else if (mealStage === "detecting" || mealStage === "estimating") {
+    html += `<div class="mealbusy"><div class="mb-spin"></div>
+      <div class="mb-text">${mealStage === "detecting" ? "Detecting what's on the plate…" : "Estimating calories…"}</div></div>`;
+  } else {
+    html += `<label class="mealsnap">
+      <input type="file" accept="image/*" capture="environment" id="mealFile" hidden>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8a1 1 0 0 1 .83-.45h5.94a1 1 0 0 1 .83.45L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+      <span class="ms-text">Snap a meal</span>
+      <span class="ms-sub">Photo → detect → confirm → estimate</span>
+    </label>`;
+  }
+
   html += `<div class="mealhint" id="mealHint"></div>`;
+
   if (!meals.length) {
     html += `<div class="empty"><div class="big">No meals logged yet</div>Snap your first meal and it'll show up here.</div>`;
   } else {
@@ -990,18 +1086,26 @@ function renderMeals() {
         <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span></div>
       </div>`;
     });
-    html += `<div class="csvhint">Estimates are rough — portion and oil are hard to see in a photo. Good for the weekly trend, not the gram.</div>`;
   }
+
   view.innerHTML = html;
-  const file = document.getElementById("mealFile");
-  if (file) file.onchange = onMealPhoto;
+
+  if (mealStage === "idle") {
+    const file = document.getElementById("mealFile");
+    if (file) file.onchange = onMealPhoto;
+  } else if (mealStage === "confirming") {
+    view.querySelectorAll(".mc-name, .mc-qty, .mc-unit").forEach(el => {
+      el.oninput = () => { pendingItems[+el.dataset.i][el.dataset.f] = el.value; };
+    });
+    const note = document.getElementById("mcNote");
+    if (note) note.oninput = () => { pendingNote = note.value; };
+    const add = document.getElementById("mcAdd");
+    if (add) add.onclick = () => { pendingItems.push({ name:"", qty:1, unit:"" }); renderMeals(); };
+    view.querySelectorAll(".mc-del").forEach(b => b.onclick = () => { pendingItems.splice(+b.dataset.del, 1); renderMeals(); });
+    const cf = document.getElementById("mcConfirm"); if (cf) cf.onclick = confirmMeal;
+    const cx = document.getElementById("mcCancel"); if (cx) cx.onclick = cancelMeal;
+  }
 }
-// ---------- Tabs + save ----------
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  currentTab = t.dataset.tab; editingDay = null; render();
-  if (currentTab === "meals") refreshMeals();
-});
-document.getElementById("saveBtn").onclick = saveSession;
 
 // ---------- Boot ----------
 (async () => {
