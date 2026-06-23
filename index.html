@@ -276,6 +276,19 @@
     padding: 13px; font-family: var(--display); font-weight: 600; font-size: 13.5px;
     color: var(--ink); cursor: pointer; margin-top: 9px;
   }
+  .picker { background: var(--card); border-radius: 14px; padding: 12px; margin-top: 9px; box-shadow: var(--shadow); }
+  .picker-top { font-family: var(--display); font-weight: 700; font-size: 14px; margin: 2px 2px 10px; }
+  .pickitem { width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+    border: 1.5px solid var(--line); background: #FBFBFC; border-radius: 11px; padding: 11px 13px; margin-bottom: 7px;
+    cursor: pointer; text-align: left; }
+  .pickitem:active { background: rgba(14,158,144,.06); border-color: rgba(14,158,144,.35); }
+  .pi-name { font-family: var(--display); font-weight: 600; font-size: 14px; color: var(--ink); }
+  .pi-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); white-space: nowrap; }
+  .pickempty { font-size: 12px; color: var(--ink-soft); padding: 6px 2px 12px; }
+  .pickcustom { width: 100%; border: 1.5px dashed var(--line); background: transparent; border-radius: 11px;
+    padding: 10px; font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--accent-ink); cursor: pointer; margin-top: 4px; }
+  .pickcancel { width: 100%; border: none; background: transparent; border-radius: 11px;
+    padding: 9px; font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; margin-top: 4px; }
   .toolbtn.danger { color: var(--accent-ink); }
   .csvhint { font-size: 11.5px; color: var(--ink-soft); margin: 12px 2px 6px; }
   .csvbox {
@@ -440,21 +453,70 @@ function pushPlanToSheet() {
     } catch (e) { /* offline — local copy is still saved */ }
   }, 1200);
 }
-function syncPlanFromSheet() {
+// Pull both the routine (Plan) and the full session history (Log) from the
+// sheet. The sheet is the source of truth for history — local storage is only
+// an offline fallback, overwritten here whenever the sheet is reachable.
+function syncFromSheet() {
   if (!SHEET_SYNC_URL) return;
   jsonp(SHEET_SYNC_URL, (err, payload) => {
-    if (err) return;
-    if (!payload || !payload.plan) { pushPlanToSheet(); return; }   // seed the sheet from this device
-    let remote;
-    try { remote = JSON.parse(payload.plan); } catch (e) { return; }
-    if (!remote || !Object.keys(remote).length) return;
-    if (JSON.stringify(remote) === JSON.stringify(plan)) return;    // already up to date
-    plan = remote; data.plan = plan; persist();
+    if (err || !payload) return;
+    // 1) Routine first, so exercise ids resolve against the current plan
+    if (payload.plan) {
+      let remote;
+      try { remote = JSON.parse(payload.plan); } catch (e) { remote = null; }
+      if (remote && Object.keys(remote).length && JSON.stringify(remote) !== JSON.stringify(plan)) {
+        plan = remote; data.plan = plan;
+      }
+    } else {
+      pushPlanToSheet();   // seed the sheet from this device
+    }
     refreshDays();
     if (editingDay && !plan[editingDay]) editingDay = null;
+    // 2) History from the Log tab
+    const sess = reconstructSessions(payload.rows);
+    if (sess) { data.sessions = sess; }
+    persist();
     buildDraft(currentDay);
     render();
   });
+}
+// Turn flat Log rows [date, day, exercise, set, weight, reps] back into sessions.
+// Returns null when there's no data, so we never clobber what we have.
+function reconstructSessions(rows) {
+  if (!rows || rows.length < 2) return null;
+  const map = {};
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i]; if (!r) continue;
+    const date = (r[0] == null) ? "" : String(r[0]).slice(0, 10);
+    const day  = (r[1] == null) ? "" : String(r[1]);
+    const name = (r[2] == null) ? "" : String(r[2]);
+    if (!date || !day) continue;
+    const setNo = parseInt(r[3], 10) || 1;
+    const wRaw = r[4], rRaw = r[5];
+    const w = (wRaw === "BW" || wRaw === "" || wRaw == null || isNaN(+wRaw)) ? "" : +wRaw;
+    const reps = (rRaw === "" || rRaw == null || isNaN(+rRaw)) ? "" : +rRaw;
+    const key = date + "|" + day;
+    if (!map[key]) map[key] = { date, day, ex: {} };
+    const id = resolveExId(day, name);
+    if (!map[key].ex[id]) map[key].ex[id] = [];
+    map[key].ex[id][setNo - 1] = { w, r: reps };
+  }
+  return Object.keys(map).map(k => {
+    const s = map[k];
+    Object.keys(s.ex).forEach(id => { s.ex[id] = s.ex[id].map(x => x || { w: "", r: "" }); });
+    return s;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+}
+// Map a logged exercise name back to a stable id, preferring the current plan.
+function resolveExId(day, name) {
+  const dp = plan[day];
+  if (dp) { const f = dp.ex.find(e => (e.name || "") === name); if (f) return f.id; }
+  for (const k of DAYS) { const f = plan[k].ex.find(e => (e.name || "") === name); if (f) return f.id; }
+  return slug(name);
+}
+function slug(name) {
+  const s = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return s ? "ex_" + s.slice(0, 40) : "ex_" + Date.now().toString(36);
 }
 function uid() { return "ex" + Date.now().toString(36) + Math.floor(Math.random()*1000); }
 function escHtml(t){return String(t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
@@ -566,13 +628,14 @@ function render() {
 }
  
 function goTab(tab) {
-  currentTab = tab; editingDay = null; goalEditing = false; render();
+  currentTab = tab; editingDay = null; goalEditing = false; pickingExercise = false; render();
   if (tab === "meals") refreshMeals();
   else if (tab === "weight") refreshWeights();
+  else if (tab === "edit") refreshExercises();
 }
 function wireHome() {
   const ht = document.getElementById("homeTitle");
-  if (ht) ht.onclick = () => { currentTab = "home"; editingDay = null; goalEditing = false; render(); };
+  if (ht) ht.onclick = () => { currentTab = "home"; editingDay = null; goalEditing = false; pickingExercise = false; render(); };
 }
 function caloriesByDay() {
   const byDay = {};
@@ -1007,7 +1070,7 @@ function renderEditDayList() {
   html += `<button class="toolbtn" id="addDayBtn">+ Add training day</button>`;
   html += `<div id="resetPlanZone"><button class="toolbtn danger" id="resetPlanBtn">Reset to the default plan</button></div>`;
   view.innerHTML = html;
-  view.querySelectorAll("[data-eday]").forEach(c => c.onclick = () => { editingDay = c.dataset.eday; render(); });
+  view.querySelectorAll("[data-eday]").forEach(c => c.onclick = () => { editingDay = c.dataset.eday; pickingExercise = false; render(); });
   document.getElementById("addDayBtn").onclick = addDay;
   document.getElementById("resetPlanBtn").onclick = armResetPlan;
 }
@@ -1026,7 +1089,8 @@ function renderEditDay(day) {
   html += `<div class="edfield"><label>Focus (the small subtitle)</label><input id="dayFocus" value="${escAttr(d.focus || "")}" placeholder="e.g. Quads \u00b7 hamstrings \u00b7 core" /></div>`;
   html += `<div class="seclabel">Exercises</div>`;
   d.ex.forEach((ex, i) => { html += exerciseEditor(ex, i); });
-  html += `<button class="toolbtn" id="addExBtn">+ Add exercise</button>`;
+  if (pickingExercise) html += exercisePickerHtml();
+  else html += `<button class="toolbtn" id="addExBtn">+ Add exercise</button>`;
   html += `<div id="delDayZone"><button class="toolbtn danger" id="delDayBtn">Delete this day</button></div>`;
   view.innerHTML = html;
   wireEditDay(day);
@@ -1049,8 +1113,27 @@ function exerciseEditor(ex, i) {
   </div>`;
 }
  
+function exercisePickerHtml() {
+  let h = `<div class="picker"><div class="picker-top">Choose an exercise</div>`;
+  if (exerciseList.length) {
+    exerciseList.forEach((e, i) => {
+      const reps = e.lo === e.hi ? e.lo : e.lo + "\u2013" + e.hi;
+      const ut = e.type === "sec" ? "sec" : (e.type === "bw" ? "bodyweight" : "kg");
+      h += `<button class="pickitem" data-pick="${i}">
+        <span class="pi-name">${escHtml(e.name)}</span>
+        <span class="pi-meta">${ut} \u00b7 ${e.sets}\u00d7${reps}</span>
+      </button>`;
+    });
+  } else {
+    h += `<div class="pickempty">No exercise list yet. Add an “Exercises” tab to your sheet, or add a blank one below.</div>`;
+  }
+  h += `<button class="pickcustom" id="pickCustom">+ Blank custom exercise</button>`;
+  h += `<button class="pickcancel" id="pickCancel">Cancel</button></div>`;
+  return h;
+}
+ 
 function wireEditDay(day) {
-  document.getElementById("backDays").onclick = () => { savePlan(); editingDay = null; render(); };
+  document.getElementById("backDays").onclick = () => { savePlan(); editingDay = null; pickingExercise = false; render(); };
  
   const nameInp = document.getElementById("dayName");
   nameInp.onchange = () => {
@@ -1084,10 +1167,20 @@ function wireEditDay(day) {
     plan[editingDay].ex.splice(+b.dataset.del, 1); savePlan(); render();
   });
  
-  document.getElementById("addExBtn").onclick = () => {
-    plan[editingDay].ex.push({ id: uid(), name: "", sets: 3, lo: 8, hi: 12, type: "kg", note: "" });
-    savePlan(); render();
-  };
+  if (pickingExercise) {
+    view.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+      const e = exerciseList[+b.dataset.pick]; if (!e) return;
+      plan[editingDay].ex.push({ id: slug(e.name), name: e.name, sets: e.sets || 3, lo: e.lo || 8, hi: e.hi || 12, type: e.type || "kg", note: e.note || "" });
+      pickingExercise = false; savePlan(); render();
+    });
+    const pc = document.getElementById("pickCustom");
+    if (pc) pc.onclick = () => { plan[editingDay].ex.push({ id: uid(), name: "", sets: 3, lo: 8, hi: 12, type: "kg", note: "" }); pickingExercise = false; savePlan(); render(); };
+    const px = document.getElementById("pickCancel");
+    if (px) px.onclick = () => { pickingExercise = false; render(); };
+  } else {
+    const addBtn = document.getElementById("addExBtn");
+    if (addBtn) addBtn.onclick = () => { pickingExercise = true; render(); refreshExercises(); };
+  }
  
   document.getElementById("delDayBtn").onclick = () => {
     const zone = document.getElementById("delDayZone");
@@ -1413,6 +1506,23 @@ function fetchGoal(cb) {
 function refreshGoal() { fetchGoal(() => { if (currentTab === "home" || currentTab === "weight") render(); }); }
 let weights = [];   // [{date, kg}]
 let goalEditing = false;   // is the Goal stat showing its inline editor?
+ 
+// ---------- Standardised exercise list (from the sheet) ----------
+const EXLIST_KEY = "ulp-exlist-v1";
+let exerciseList = [];        // [{name, type, sets, lo, hi, note}]
+let pickingExercise = false;  // is the routine builder showing the exercise chooser?
+function loadExListCache() { try { const v = localStorage.getItem(EXLIST_KEY); if (v) exerciseList = JSON.parse(v); } catch (e) {} }
+function fetchExercises(cb) {
+  if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
+  jsonp(SHEET_SYNC_URL + "?action=getExercises", (err, payload) => {
+    if (!err && payload && Array.isArray(payload.exercises)) {
+      exerciseList = payload.exercises;
+      try { localStorage.setItem(EXLIST_KEY, JSON.stringify(exerciseList)); } catch (e) {}
+    }
+    if (cb) cb();
+  });
+}
+function refreshExercises() { fetchExercises(() => { if (currentTab === "edit" && editingDay) render(); }); }
 function loadWeightCache() { try { const v = localStorage.getItem(WEIGHT_KEY); if (v) weights = JSON.parse(v); } catch (e) {} }
 function cacheWeights() { try { localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights)); } catch (e) {} }
 function sortedWeights() { return [...weights].sort((a, b) => a.date.localeCompare(b.date)); }
@@ -1554,11 +1664,13 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
   loadMealsCache();
   loadWeightCache();
   loadGoal();
+  loadExListCache();
   buildDraft(currentDay);
   render();
-  syncPlanFromSheet();   // pull any routine edits made on other devices
+  syncFromSheet();       // pull routine + full session history from the sheet
   refreshMeals();        // pull logged meals so the home graphs fill in
   refreshWeights();      // pull logged bodyweight from the sheet
   refreshGoal();         // pull the target weight from the sheet
+  fetchExercises();      // pull the standardised exercise list from the sheet
 })();
 </script>
