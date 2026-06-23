@@ -710,20 +710,28 @@ function nameFromPlan(id) {
   return null;
 }
 function exerciseProgressData() {
-  // Pull straight from the (sheet-derived) session log. For each exercise,
+  // Pull straight from the (sheet-derived) session log, grouped by exercise
+  // NAME so the same movement merges across routines. For each exercise,
   // record the highest weight lifted on each day it was trained.
-  const byEx = {};   // id -> { id, name, day, hist: [{date, w}] }
+  const byName = {};   // name -> { name, hist: [{date, w}] }
   data.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(s => {
     Object.keys(s.ex || {}).forEach(id => {
       const sets = s.ex[id]; if (!sets || !sets.length) return;
       const dayMax = Math.max(...sets.map(x => +x.w || 0));
       if (!(dayMax > 0)) return;   // skip bodyweight / timed exercises
-      if (!byEx[id]) byEx[id] = { id, name: exNameById[id] || nameFromPlan(id) || id, day: s.day, hist: [] };
-      byEx[id].day = s.day;        // label with the most recent day trained
-      byEx[id].hist.push({ date: s.date, w: dayMax });
+      const name = exNameById[id] || nameFromPlan(id) || id;
+      if (!byName[name]) byName[name] = { name, hist: [] };
+      // if the same exercise was trained twice on one date, keep the heavier
+      const h = byName[name].hist;
+      const existing = h.find(x => x.date === s.date);
+      if (existing) existing.w = Math.max(existing.w, dayMax);
+      else h.push({ date: s.date, w: dayMax });
     });
   });
-  return Object.values(byEx).filter(p => p.hist.length).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.values(byName).map(p => {
+    p.hist.sort((a, b) => a.date.localeCompare(b.date));
+    return p;
+  }).filter(p => p.hist.length).sort((a, b) => a.name.localeCompare(b.name));
 }
 function exerciseProgressHtml() {
   const prog = exerciseProgressData();
@@ -734,7 +742,7 @@ function exerciseProgressHtml() {
     const pts = p.hist.slice(-14).map(x => ({ label: prettyShort(x.date), value: x.w }));
     h += `<div class="excol">
       <button class="exhead" data-exkey="${i}">
-        <span><span class="exh-name">${escHtml(p.name)}</span> <span class="exh-day">\u00b7 ${escHtml(p.day)}</span></span>
+        <span class="exh-name">${escHtml(p.name)}</span>
         <span class="exh-w">${latest} kg \u203a</span>
       </button>
       <div class="exbody" id="exb-${i}">${scatterChart(pts, { zeroBase: false, unit: " kg", empty: "No data yet." })}</div>
