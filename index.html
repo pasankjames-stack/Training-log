@@ -403,6 +403,7 @@ function refreshDays() {
  
 // ---------- State ----------
 let data = { sessions: [] };
+let exNameById = {};   // exercise id -> display name, learned from the Log on sync
 let currentDay = "Lower A";
 let currentTab = "home";
 let draft = {};   // { exId: [{w, r}, ...] }
@@ -502,6 +503,7 @@ function reconstructSessions(rows) {
     const key = date + "|" + day;
     if (!map[key]) map[key] = { date, day, ex: {} };
     const id = resolveExId(day, name);
+    exNameById[id] = name;
     if (!map[key].ex[id]) map[key].ex[id] = [];
     map[key].ex[id][setNo - 1] = { w, r: reps };
   }
@@ -703,17 +705,25 @@ function scatterChart(points, opts) {
 }
  
 // Per-exercise top working weight over time (used in History)
+function nameFromPlan(id) {
+  for (const k of DAYS) { const f = plan[k].ex.find(e => e.id === id); if (f) return f.name; }
+  return null;
+}
 function exerciseProgressData() {
-  const weighted = [];
-  DAYS.forEach(day => plan[day].ex.forEach(ex => { if (ex.type === "kg") weighted.push({ day, ex }); }));
-  const prog = [];
-  weighted.forEach(({ day, ex }) => {
-    const hist = data.sessions.filter(s => s.day === day && s.ex[ex.id])
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(s => ({ date: s.date, w: Math.max(...s.ex[ex.id].map(x => +x.w || 0)) }));
-    if (hist.length) prog.push({ day, ex, hist });
+  // Pull straight from the (sheet-derived) session log. For each exercise,
+  // record the highest weight lifted on each day it was trained.
+  const byEx = {};   // id -> { id, name, day, hist: [{date, w}] }
+  data.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(s => {
+    Object.keys(s.ex || {}).forEach(id => {
+      const sets = s.ex[id]; if (!sets || !sets.length) return;
+      const dayMax = Math.max(...sets.map(x => +x.w || 0));
+      if (!(dayMax > 0)) return;   // skip bodyweight / timed exercises
+      if (!byEx[id]) byEx[id] = { id, name: exNameById[id] || nameFromPlan(id) || id, day: s.day, hist: [] };
+      byEx[id].day = s.day;        // label with the most recent day trained
+      byEx[id].hist.push({ date: s.date, w: dayMax });
+    });
   });
-  return prog;
+  return Object.values(byEx).filter(p => p.hist.length).sort((a, b) => a.name.localeCompare(b.name));
 }
 function exerciseProgressHtml() {
   const prog = exerciseProgressData();
@@ -724,7 +734,7 @@ function exerciseProgressHtml() {
     const pts = p.hist.slice(-14).map(x => ({ label: prettyShort(x.date), value: x.w }));
     h += `<div class="excol">
       <button class="exhead" data-exkey="${i}">
-        <span><span class="exh-name">${escHtml(p.ex.name)}</span> <span class="exh-day">\u00b7 ${escHtml(p.day)}</span></span>
+        <span><span class="exh-name">${escHtml(p.name)}</span> <span class="exh-day">\u00b7 ${escHtml(p.day)}</span></span>
         <span class="exh-w">${latest} kg \u203a</span>
       </button>
       <div class="exbody" id="exb-${i}">${scatterChart(pts, { zeroBase: false, unit: " kg", empty: "No data yet." })}</div>
