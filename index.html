@@ -361,6 +361,153 @@ const STORE_KEY = "ulp-tracker-v1";
 const SHEET_SYNC_URL = "https://script.google.com/macros/s/AKfycbxB6ZMyoix4ygEgL5TzXNN0uNX_bVd9uy5D_bKDwy0Z9i3sZSE7z7crlOI3LqIcBKft/exec";
 const APP_TOKEN = "k7mPq2xRv9tLw4nB8sZ";
 // ==========================================
+<!-- ============================================================
+  HEALTH TRACK — MULTI-USER (admin-managed)  ·  drop-in block
+  Paste ONCE in index.html, on the line right after:
+      const APP_TOKEN = "...";
+  Login collects name + PIN; the backend Users tab returns the
+  admin-assigned uid. Wraps jsonp()/fetch() to scope every
+  request to that user. Nothing else in the file changes.
+  ============================================================ -->
+<script>
+(function () {
+  var UID_KEY = "ulp-user-v1";
+
+  function readUser() {
+    try { return JSON.parse(localStorage.getItem(UID_KEY) || "null"); } catch (e) { return null; }
+  }
+  function writeUser(u) { localStorage.setItem(UID_KEY, JSON.stringify(u)); }
+
+  window.HT_USER = readUser();
+  window.htUid = function () { return window.HT_USER ? window.HT_USER.uid : ""; };
+
+  // Wrap jsonp() so every read carries &uid=
+  function installJsonpWrapper() {
+    if (typeof window.jsonp !== "function" || window.__htJsonpWrapped) return;
+    var orig = window.jsonp;
+    window.jsonp = function (url, cb) {
+      var uid = window.htUid();
+      if (uid) url += (url.indexOf("?") >= 0 ? "&" : "?") + "uid=" + encodeURIComponent(uid);
+      return orig(url, cb);
+    };
+    window.__htJsonpWrapped = true;
+  }
+
+  // Wrap fetch() so every write to the sheet has uid stamped into its JSON body
+  var origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    try {
+      var url = (typeof input === "string") ? input : (input && input.url);
+      var SU = (typeof SHEET_SYNC_URL !== "undefined") ? SHEET_SYNC_URL : "";
+      if (SU && url && url.indexOf(SU) === 0 && init && typeof init.body === "string") {
+        var uid = window.htUid();
+        if (uid) {
+          var b = null;
+          try { b = JSON.parse(init.body); } catch (e) { b = null; }
+          if (b && typeof b === "object") {
+            b.uid = uid;
+            init = Object.assign({}, init, { body: JSON.stringify(b) });
+          }
+        }
+      }
+    } catch (e) {}
+    return origFetch(input, init);
+  };
+
+  // Ask the backend to match name+PIN against the admin's Users tab.
+  // Returns the admin-assigned uid via cb(uid|null).
+  function htLogin(name, pin, cb) {
+    var SU = (typeof SHEET_SYNC_URL !== "undefined") ? SHEET_SYNC_URL : "";
+    if (!SU || typeof window.jsonp !== "function") { cb(null); return; }
+    var url = SU + "?action=login&name=" + encodeURIComponent(name) + "&pin=" + encodeURIComponent(pin);
+    window.jsonp(url, function (err, payload) {
+      cb((!err && payload && payload.uid) ? payload.uid : null);
+    });
+  }
+
+  // Re-pull everything for the now-logged-in user (uses whatever refreshers exist)
+  function pullForUser() {
+    ["syncFromSheet", "refreshMeals", "refreshWeights", "refreshGoal", "fetchExercises"].forEach(function (fn) {
+      try { if (typeof window[fn] === "function") window[fn](); } catch (e) {}
+    });
+    try { if (typeof window.render === "function") window.render(); } catch (e) {}
+  }
+
+  function showSetup(isSwitch) {
+    var prev = window.HT_USER;
+    var ov = document.createElement("div");
+    ov.id = "htSetup";
+    ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(20,24,28,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;";
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:16px;max-width:340px;width:100%;padding:24px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;">' +
+        '<div style="font-weight:700;font-size:19px;margin-bottom:4px;">' + (isSwitch ? "Switch user" : "Welcome to Health Track") + '</div>' +
+        '<div style="font-size:13px;color:#667;line-height:1.4;margin-bottom:16px;">Enter the name + PIN your admin set up for you.</div>' +
+        '<input id="htName" placeholder="Name" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #dde;border-radius:10px;font-size:15px;margin-bottom:10px;">' +
+        '<input id="htPin" placeholder="PIN" inputmode="numeric" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #dde;border-radius:10px;font-size:15px;margin-bottom:6px;">' +
+        '<div id="htErr" style="font-size:12px;color:#c0392b;min-height:16px;margin-bottom:8px;"></div>' +
+        '<button id="htGo" style="width:100%;border:none;background:#0E9E90;color:#fff;border-radius:11px;padding:13px;font-weight:700;font-size:14px;cursor:pointer;">' + (isSwitch ? "Switch" : "Start") + '</button>' +
+        (isSwitch ? '<button id="htCancel" style="width:100%;border:none;background:transparent;color:#889;padding:10px;font-size:13px;cursor:pointer;margin-top:4px;">Cancel</button>' : '') +
+      '</div>';
+    document.body.appendChild(ov);
+
+    var errEl = ov.querySelector("#htErr");
+    var goBtn = ov.querySelector("#htGo");
+    var go = function () {
+      var name = ov.querySelector("#htName").value.trim();
+      var pin = ov.querySelector("#htPin").value.trim();
+      if (name.length < 1 || pin.length < 1) { errEl.textContent = "Enter your name and PIN."; return; }
+      errEl.style.color = "#667"; errEl.textContent = "Checking\u2026"; goBtn.disabled = true;
+      htLogin(name, pin, function (uid) {
+        goBtn.disabled = false;
+        if (!uid) { errEl.style.color = "#c0392b"; errEl.textContent = "Not recognized \u2014 ask the admin to add you."; return; }
+        var changed = !prev || prev.uid !== uid;
+        window.HT_USER = { name: name, uid: uid };
+        writeUser(window.HT_USER);
+        if (isSwitch && changed) {
+          try {
+            Object.keys(localStorage).forEach(function (k) {
+              if (k.indexOf("ulp-") === 0 && k !== UID_KEY) localStorage.removeItem(k);
+            });
+          } catch (e) {}
+          location.reload();
+          return;
+        }
+        ov.remove();
+        installJsonpWrapper();
+        pullForUser();
+        mountChip();
+      });
+    };
+    goBtn.onclick = go;
+    ov.querySelector("#htPin").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+    var c = ov.querySelector("#htCancel");
+    if (c) c.onclick = function () { ov.remove(); };
+    setTimeout(function () { ov.querySelector("#htName").focus(); }, 50);
+  }
+
+  function mountChip() {
+    if (!window.HT_USER) return;
+    var ex = document.getElementById("htChip");
+    if (ex) ex.remove();
+    var chip = document.createElement("button");
+    chip.id = "htChip";
+    chip.textContent = "\uD83D\uDC64 " + window.HT_USER.name;
+    chip.title = "Tap to switch user";
+    chip.style.cssText = "position:fixed;top:10px;right:10px;z-index:9000;border:1.5px solid #E4E6E9;background:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;color:#565E66;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);font-family:inherit;";
+    chip.onclick = function () { showSetup(true); };
+    document.body.appendChild(chip);
+  }
+  window.htSwitchUser = function () { showSetup(true); };
+
+  function start() {
+    installJsonpWrapper();
+    if (!window.HT_USER) showSetup(false);
+    else mountChip();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
+})();
+</script>
  
 // ---------- The plan ----------
 const DEFAULT_PLAN = {
