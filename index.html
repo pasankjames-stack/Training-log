@@ -562,9 +562,8 @@ async function load() {
   else data.plan = plan;     // first run / upgrade: store the editable plan
   refreshDays();
   if (!data.seeded) {
-    if (data.sessions.length === 0) seed();
     data.seeded = true;
-    await persist();   // lock in the seed + flag so it's stable across reloads
+    await persist();   // mark initialised — no demo seed in multi-user mode
   }
 }
 async function persist() {
