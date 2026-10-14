@@ -780,6 +780,11 @@ const view = document.getElementById("view");
 const savebar = document.getElementById("savebar");
 
 function render() {
+  // Switch the page into the right layout BEFORE drawing, so the home screen
+  // measures its real space when it sizes the calorie chart
+  const isHome = !["log", "history", "meals", "weight", "edit"].includes(currentTab);
+  document.body.classList.toggle("home", isHome);
+  document.body.classList.toggle("logbar", currentTab === "log" && logPicked);
   if (currentTab === "home") renderHome();
   else if (currentTab === "log") renderLog();
   else if (currentTab === "history") renderHistory();
@@ -787,10 +792,9 @@ function render() {
   else if (currentTab === "weight") renderWeight();
   else if (currentTab === "edit") renderEdit();
   else renderHome();
-  const showBar = currentTab === "log" && logPicked;
+  const showBar = currentTab === "log" && logPicked;   // renderLog may have reset logPicked
   savebar.style.display = showBar ? "block" : "none";
   document.body.classList.toggle("logbar", showBar);
-  document.body.classList.toggle("home", currentTab === "home");
   wireHome();
 }
 
@@ -2124,12 +2128,15 @@ function checkDayRollover() {
   }
 }
 setInterval(checkDayRollover, 60 * 1000);        // catch midnight while open
-// Re-fit the home screen when the phone rotates or the browser bars change size
+// Re-fit the home screen when the phone rotates or the browser bars change size,
+// and once the web fonts arrive (they can shift text heights slightly)
 let _resizeTimer = null;
-window.addEventListener("resize", () => {
+function refitHomeSoon() {
   clearTimeout(_resizeTimer);
   _resizeTimer = setTimeout(() => { if (currentTab === "home") renderIfIdle(); }, 150);
-});
+}
+window.addEventListener("resize", refitHomeSoon);
+if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", refitHomeSoon);
 window.addEventListener("focus", checkDayRollover);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkDayRollover(); });
 
