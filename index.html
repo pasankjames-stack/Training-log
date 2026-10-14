@@ -11,7 +11,9 @@
 <meta name="theme-color" content="#F5F6F7" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<!-- Fonts load without holding up the first screen; system fonts show until they arrive -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+<noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" /></noscript>
 
 <style>
   :root {
@@ -1763,6 +1765,16 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
   render();              // show cached data instantly
   bootFromSheet();       // then one request pulls everything fresh from the sheet
 })();
+
+// ---------- Offline cache (service worker) ----------
+// Lets the page itself open instantly from the phone instead of waiting on
+// GitHub Pages. Needs sw.js uploaded next to index.html. Updates to
+// index.html show up on the open AFTER the one that downloads them.
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* sw.js missing — app still works */ });
+  });
+}
 </script>
 </body>
 </html>
