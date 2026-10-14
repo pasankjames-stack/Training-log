@@ -29,6 +29,8 @@
     --up-bg: #E1F3F0;
     --hold: #565E66;          /* repeat / chase reps (neutral) */
     --hold-bg: #EDEFF1;
+    --over: #E5484D;          /* over the calorie target */
+    --over-ink: #C2373C;
     --shadow: 0 1px 2px rgba(18,20,23,.05), 0 8px 24px rgba(18,20,23,.06);
     --display: "Space Grotesk", system-ui, sans-serif;
     --body: "Inter", system-ui, sans-serif;
@@ -44,10 +46,16 @@
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
-  .app { max-width: 480px; margin: 0 auto; padding: 18px 16px 120px; }
+  .app { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); }
+  body.logbar .app { padding-bottom: 120px; }   /* room for the Save bar on the Log tab only */
+  /* Home: fill the screen and pin the buttons to the bottom */
+  body.home .app { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+  body.home #view { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .card.protcard { padding: 12px 14px 13px; margin-bottom: 9px; }
+  .card.protcard h2 { margin: 0; }
 
   /* ---- Header ---- */
-  header { padding: 6px 2px 14px; }
+  header { padding: 2px 2px 10px; }
   .kicker {
     font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
     text-transform: uppercase; color: var(--ink-faint); font-weight: 700;
@@ -207,12 +215,35 @@
   .navgrid3 .nt-name { font-size: 14px; }
   .nt-name { display: block; font-family: var(--display); font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; }
   .nt-sub { display: block; font-size: 11.5px; color: var(--ink); margin-top: 2px; }
-  .stats.four { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .stats.four { grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 9px; }
   .stats.four .stat { padding: 9px 7px; border-radius: 11px; text-align: center; }
   .stats.four .stat .lbl { font-size: 8px; letter-spacing: .03em; }
   .stats.four .stat .val { font-size: 16px; margin-top: 2px; }
   .stats.four .stat .val small { font-size: 8.5px; }
-  .chartgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 11px; }
+  .card.today { padding: 12px 14px; margin-bottom: 9px; }
+  .td-row { display: flex; align-items: center; gap: 12px; }
+  .td-main { flex: 1; min-width: 0; }
+  .td-lbl { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+  .td-name { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: -.01em; margin-top: 1px; line-height: 1.25; }
+  .td-sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+  .td-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .td-meta.done { color: var(--accent-ink); font-weight: 700; }
+  .td-go { border: none; background: var(--accent); color: #fff; border-radius: 11px; padding: 11px 18px; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(14,158,144,.25); flex-shrink: 0; }
+  .td-go:active { transform: translateY(1px); }
+  .td-div { height: 1px; background: var(--line); margin: 10px 0 8px; }
+  .td-prow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .td-pv { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); white-space: nowrap; }
+  .td-pv b { font-size: 14px; color: var(--ink); }
+  .td-pv .done { color: var(--accent-ink); font-weight: 700; }
+  .td-bar { height: 8px; background: #ECEEF1; border-radius: 5px; margin-top: 6px; overflow: hidden; }
+  .navrow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .navrow .navtile { display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px 2px; min-height: 46px; border-radius: 13px; }
+  .navrow .nt-name { font-size: 13px; }
+  .navrow.two { grid-template-columns: 1fr 1fr; }
+  .navrow.three { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
+  .navrow.two .nt-name, .navrow.three .nt-name { font-size: 14px; }
+  .td-bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .3s; }
+  .chartgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
   .chartgrid .card { margin-bottom: 0; padding: 13px 13px 10px; }
   .chartgrid .card h2 { font-size: 13px; }
   .chartgrid .card .csub { margin-bottom: 8px; }
@@ -756,7 +787,10 @@ function render() {
   else if (currentTab === "weight") renderWeight();
   else if (currentTab === "edit") renderEdit();
   else renderHome();
-  savebar.style.display = (currentTab === "log" && logPicked) ? "block" : "none";
+  const showBar = currentTab === "log" && logPicked;
+  savebar.style.display = showBar ? "block" : "none";
+  document.body.classList.toggle("logbar", showBar);
+  document.body.classList.toggle("home", currentTab === "home");
   wireHome();
 }
 
@@ -824,13 +858,51 @@ function scatterChart(points, opts) {
       dots += `<text class="dotval" x="${cx.toFixed(1)}" y="${(cy - 8).toFixed(1)}" text-anchor="middle">${dv}${opts.unit || ""}</text>`;
     }
     const show = n <= 8 || i === 0 || last || i === Math.floor(n / 2);
-    if (show) labels += `<text class="axis" x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="middle">${p.label}</text>`;
+    // Edge labels anchor inward so they aren't clipped
+    const anchor = n === 1 ? "middle" : (i === 0 ? "start" : (last ? "end" : "middle"));
+    if (show) labels += `<text class="axis" x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="${anchor}">${p.label}</text>`;
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
     <path d="${areaPath}" fill="var(--accent)" opacity="0.1"/>
     ${target}
     <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}${labels}</svg>`;
+}
+
+// Bar chart. points = [{label, value}]; opts: { target, height, empty }
+// Any day over the target is red; otherwise the latest bar is teal and earlier
+// bars grey. Dashed line at the target.
+function barChart(points, opts) {
+  opts = opts || {};
+  if (!points.length) return `<div class="chartempty">${opts.empty || "Nothing logged yet."}</div>`;
+  const W = 320, H = opts.height || 132, padL = 8, padR = 10, padT = 18, padB = 20;
+  const n = points.length;
+  const max = Math.max(...points.map(p => p.value), opts.target || 0, 1);
+  const y = v => padT + (1 - v / max) * (H - padT - padB);
+  const slot = (W - padL - padR) / n;
+  const bw = Math.min(slot * 0.62, 26);
+  const baseY = H - padB;
+  let bars = "", labels = "";
+  points.forEach((p, i) => {
+    const last = i === n - 1;
+    const cx = padL + slot * (i + 0.5);
+    const top = y(p.value), h = Math.max(baseY - top, p.value > 0 ? 2 : 0);
+    const over = opts.target != null && p.value > opts.target;
+    const fill = over ? "var(--over)" : (last ? "var(--accent)" : "#DDE0E4");
+    bars += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${(baseY - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${fill}"/>`;
+    if (last) bars += `<text class="dotval" x="${cx.toFixed(1)}" y="${(baseY - h - 5).toFixed(1)}" text-anchor="middle"${over ? ' style="fill:var(--over-ink)"' : ""}>${Math.round(p.value).toLocaleString()}</text>`;
+    const show = n <= 8 || i === 0 || last || i === Math.floor(n / 2);
+    if (show) labels += `<text class="axis" x="${cx.toFixed(1)}" y="${H - 5}" text-anchor="middle">${p.label}</text>`;
+  });
+  let target = "";
+  if (opts.target != null) {
+    const ty = y(opts.target);
+    target = `<line x1="${padL}" y1="${ty.toFixed(1)}" x2="${W - padR}" y2="${ty.toFixed(1)}" stroke="var(--ink-soft)" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>
+      <text class="axis" x="${padL + 2}" y="${(ty - 4).toFixed(1)}" text-anchor="start" stroke="var(--card)" stroke-width="3" paint-order="stroke">${opts.target}</text>`;
+  }
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}" stroke="var(--line)" stroke-width="1"/>
+    ${bars}${target}${labels}</svg>`;
 }
 
 // Per-exercise top working weight over time (used in History)
@@ -880,6 +952,70 @@ function exerciseProgressHtml() {
   return h;
 }
 
+// ---------- Home: Today card (next workout + protein) ----------
+const PROTEIN_TARGET = 135;   // g per day
+
+function lastDoneDate(day) {
+  let d = "";
+  data.sessions.forEach(s => { if (s.day === day && s.date > d) d = s.date; });
+  return d;
+}
+// The routine done least recently; never-done routines first; ties in routine order.
+function nextWorkout() {
+  if (!DAYS.length) return null;
+  let pick = DAYS[0], pickDate = lastDoneDate(DAYS[0]);
+  DAYS.forEach(day => { const d = lastDoneDate(day); if (d < pickDate) { pick = day; pickDate = d; } });
+  return { day: pick, last: pickDate };
+}
+// Jump straight into a routine on the Log tab (keeps typed sets if it's the one in progress)
+function startWorkout(day) {
+  if (!plan[day]) return;
+  if (day !== currentDay || !draftDirty) { currentDay = day; buildDraft(day); }
+  currentTab = "log"; editingDay = null; goalEditing = false; pickingExercise = false; histDeleteKey = null;
+  logPicked = true;
+  render();
+  window.scrollTo(0, 0);
+}
+function todayCardHtml(today) {
+  const inProgress = draftDirty && plan[currentDay];
+  const next = inProgress ? { day: currentDay, last: lastDoneDate(currentDay) } : nextWorkout();
+  const doneToday = [...new Set(data.sessions.filter(s => s.date === today).map(s => s.day))];
+
+  let workout = "";
+  if (next && plan[next.day]) {
+    const focus = plan[next.day].focus || "";
+    // One line under the name: "✓ Trained today: …" or "focus · last done …"
+    const lastTxt = next.last ? `last ${prettyShort(next.last)}` : "not done yet";
+    const meta = doneToday.length
+      ? `✓ Trained today: ${doneToday.map(escHtml).join(", ")}`
+      : (focus ? escHtml(focus) + " · " : "") + lastTxt;
+    workout = `<div class="td-row">
+      <div class="td-main">
+        <div class="td-lbl">${inProgress ? "In progress" : "Next workout"}</div>
+        <div class="td-name">${escHtml(next.day)}</div>
+        <div class="td-meta${doneToday.length ? " done" : ""}">${meta}</div>
+      </div>
+      <button class="td-go" id="tdGo" data-day="${escAttr(next.day)}">${inProgress ? "Continue" : "Start"}</button>
+    </div>`;
+  } else {
+    workout = `<div class="td-lbl">Next workout</div><div class="td-sub">Add a routine in Routines to get started.</div>`;
+  }
+
+  return `<div class="card today">${workout}</div>`;
+}
+
+// Protein today: its own card, sitting just above the calorie chart
+function proteinCardHtml(today) {
+  const prot = Math.round(meals.filter(m => m.date === today).reduce((a, m) => a + (+m.protein || 0), 0));
+  const pct = Math.min(100, Math.round(prot / PROTEIN_TARGET * 100));
+  const left = PROTEIN_TARGET - prot;
+  return `<div class="card protcard">
+    <div class="td-prow"><h2>Protein today</h2>
+      <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g · ${left > 0 ? left + " g to go" : `<span class="done">✓ target hit</span>`}</span></div>
+    <div class="td-bar"><span style="width:${pct}%"></span></div>
+  </div>`;
+}
+
 function renderHome() {
   const sessions = dashSessions();
   const today = isoToday();
@@ -898,31 +1034,83 @@ function renderHome() {
     <div class="stat"><div class="lbl">Calories today</div><div class="val">${Math.round(kcalToday) || 0}<small> /2000</small></div></div>
   </div>`;
 
+  html += todayCardHtml(today);
+
   const volPts = sessions.slice(-14).map(s => ({ label: prettyShort(s.date), value: s.volume }));
   const wPts = sortedWeights().slice(-14).map(w => ({ label: prettyShort(w.date), value: w.kg }));
+  _volPts = volPts; _wPts = wPts;
   html += `<div class="chartgrid">
     <div class="card"><h2>Volume / session</h2>
-      ${scatterChart(volPts, { height: 120, empty: "No sessions yet." })}</div>
+      <div class="volbody">${volChartHtml(SMALL_BASE_H)}</div></div>
     <div class="card"><h2>Weight</h2>
-      ${scatterChart(wPts, { height: 120, zeroBase: false, target: WEIGHT_GOAL, unit: " kg", empty: "No data yet." })}</div>
+      <div class="wbody">${weightChartHtml(SMALL_BASE_H)}</div></div>
   </div>`;
 
-  const calPts = caloriesByDay().slice(-14).map(d => ({ label: prettyShort(d.date), value: d.kcal }));
-  html += `<div class="card"><h2>Calories per day</h2>
-    ${scatterChart(calPts, { target: 2000, height: 170, empty: "Snap a meal to start tracking." })}</div>`;
+  // Last 7 calendar days (today + previous 6); days with nothing logged show an empty slot
+  const kcalByDate = {};
+  caloriesByDay().forEach(d => { kcalByDate[d.date] = d.kcal; });
+  const calPts = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() - i);
+    const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    calPts.push({ label: prettyShort(iso), value: kcalByDate[iso] || 0 });
+  }
+  _calPts = calPts.some(p => p.value > 0) ? calPts : [];
+  html += proteinCardHtml(today);
+  html += `<div class="card" id="calCard"><h2>Calories</h2>
+    <div class="calbody">${barChart(_calPts, { target: 2000, height: CAL_MAX_H, empty: "No meals logged in the last 7 days." })}</div></div>`;
 
-  html += `<div class="navgrid">
-      <button class="navtile" data-go="log"><span class="nt-name">Log</span></button>
-      <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button>
-    </div>
-    <div class="navgrid3">
-      <button class="navtile" data-go="history"><span class="nt-name">History</span></button>
-      <button class="navtile" data-go="edit"><span class="nt-name">Routines</span></button>
-      <button class="navtile" data-go="weight"><span class="nt-name">Weight</span></button>
+  // Buttons in two rows (Log + Meals, then History / Routines / Weight);
+  // the calorie chart shrinks to make room so nothing else changes size
+  html += `<div class="navwrap">
+      <div class="navrow two">
+        <button class="navtile" data-go="log"><span class="nt-name">Log</span></button>
+        <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button>
+      </div>
+      <div class="navrow three">
+        <button class="navtile" data-go="history"><span class="nt-name">History</span></button>
+        <button class="navtile" data-go="edit"><span class="nt-name">Routines</span></button>
+        <button class="navtile" data-go="weight"><span class="nt-name">Weight</span></button>
+      </div>
     </div>`;
 
   view.innerHTML = html;
   view.querySelectorAll(".navtile").forEach(b => b.onclick = () => goTab(b.dataset.go));
+  const tdGo = document.getElementById("tdGo");
+  if (tdGo) tdGo.onclick = () => startWorkout(tdGo.dataset.day);
+  fitHome();
+}
+
+// Make the home page fit the phone exactly:
+//  - small phone, page would scroll → shrink the calorie chart (down to a minimum)
+//  - bigger phone → the calorie chart grows into the spare room so the sections
+//    sit at normal spacing; Volume / Weight charts always keep their fixed size
+// Heights are in chart units (charts are 320 units wide and scale to the card).
+const CAL_MAX_H = 110, CAL_MIN_H = 70, CAL_GROW_MAX_H = 320;
+const SMALL_BASE_H = 120;   // Volume / Weight charts: fixed size
+let _calPts = [], _volPts = [], _wPts = [];
+function volChartHtml(h) { return scatterChart(_volPts, { height: h, empty: "No sessions yet." }); }
+function weightChartHtml(h) { return scatterChart(_wPts, { height: h, zeroBase: false, target: WEIGHT_GOAL, unit: " kg", empty: "No data yet." }); }
+function fitHome() {
+  if (currentTab !== "home") return;
+  const card = document.getElementById("calCard");
+  const svg = card && card.querySelector("svg.chart");
+  if (!svg || !_calPts.length) return;
+  const wpx = svg.getBoundingClientRect().width || 320;
+  const over = document.documentElement.scrollHeight - window.innerHeight;
+  let h;
+  if (over > 0) {
+    h = Math.max(CAL_MIN_H, CAL_MAX_H - Math.ceil(over * 320 / wpx));
+  } else {
+    // Spare height = the view's height minus what its sections actually need
+    let used = 0;
+    [...view.children].forEach(el => { used += el.offsetHeight + (parseFloat(getComputedStyle(el).marginBottom) || 0); });
+    const slack = view.getBoundingClientRect().height - used;
+    if (slack <= 4) return;
+    h = Math.min(CAL_GROW_MAX_H, CAL_MAX_H + Math.floor((slack - 2) * 320 / wpx));
+  }
+  card.querySelector(".calbody").innerHTML =
+    barChart(_calPts, { target: 2000, height: h, empty: "No meals logged in the last 7 days." });
 }
 
 // Log tab, step 1: just the routines. Exercises appear once one is tapped.
@@ -1651,7 +1839,7 @@ function renderMeals() {
 
   let html = `<div class="stats">
     <div class="stat"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ 2000 kcal</small></div></div>
-    <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ 135 g</small></div></div>
+    <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ ${PROTEIN_TARGET} g</small></div></div>
   </div>`;
 
   if (mealStage === "confirming") {
@@ -1936,6 +2124,12 @@ function checkDayRollover() {
   }
 }
 setInterval(checkDayRollover, 60 * 1000);        // catch midnight while open
+// Re-fit the home screen when the phone rotates or the browser bars change size
+let _resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if (currentTab === "home") renderIfIdle(); }, 150);
+});
 window.addEventListener("focus", checkDayRollover);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkDayRollover(); });
 
