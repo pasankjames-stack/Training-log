@@ -1,3 +1,6 @@
+<!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>Health Track</title>
@@ -324,6 +327,8 @@
   .exdel { width: 100%; border: none; background: transparent; color: var(--accent-ink); font-family: var(--display); font-weight: 600; font-size: 12px; padding: 4px; cursor: pointer; }
   .loading { text-align: center; padding: 60px 20px; color: var(--ink-faint); font-family: var(--mono); font-size: 13px; }
 </style>
+</head>
+<body>
 
 <div class="app">
   <header>
@@ -362,147 +367,9 @@ const SHEET_SYNC_URL = "https://script.google.com/macros/s/AKfycbxB6ZMyoix4ygEgL
 const APP_TOKEN = "k7mPq2xRv9tLw4nB8sZ";
 // ==========================================
 
-// ---------- Multi-user (admin-managed name + PIN) ----------
-// Login collects name + PIN; the backend "Users" tab returns the
-// admin-assigned uid. Wraps jsonp()/fetch() so every request is scoped
-// to the logged-in user.
-(function () {
-  var UID_KEY = "ulp-user-v1";
-
-  function readUser() {
-    try { return JSON.parse(localStorage.getItem(UID_KEY) || "null"); } catch (e) { return null; }
-  }
-  function writeUser(u) { localStorage.setItem(UID_KEY, JSON.stringify(u)); }
-
-  window.HT_USER = readUser();
-  window.htUid = function () { return window.HT_USER ? window.HT_USER.uid : ""; };
-
-  // Wrap jsonp() so every read carries &uid=
-  function installJsonpWrapper() {
-    if (typeof window.jsonp !== "function" || window.__htJsonpWrapped) return;
-    var orig = window.jsonp;
-    window.jsonp = function (url, cb) {
-      var uid = window.htUid();
-      if (uid) url += (url.indexOf("?") >= 0 ? "&" : "?") + "uid=" + encodeURIComponent(uid);
-      return orig(url, cb);
-    };
-    window.__htJsonpWrapped = true;
-  }
-
-  // Wrap fetch() so every write to the sheet has uid stamped into its JSON body
-  var origFetch = window.fetch.bind(window);
-  window.fetch = function (input, init) {
-    try {
-      var url = (typeof input === "string") ? input : (input && input.url);
-      var SU = (typeof SHEET_SYNC_URL !== "undefined") ? SHEET_SYNC_URL : "";
-      if (SU && url && url.indexOf(SU) === 0 && init && typeof init.body === "string") {
-        var uid = window.htUid();
-        if (uid) {
-          var b = null;
-          try { b = JSON.parse(init.body); } catch (e) { b = null; }
-          if (b && typeof b === "object") {
-            b.uid = uid;
-            init = Object.assign({}, init, { body: JSON.stringify(b) });
-          }
-        }
-      }
-    } catch (e) {}
-    return origFetch(input, init);
-  };
-
-  // Ask the backend to match name+PIN against the admin's Users tab.
-  // Returns the admin-assigned uid via cb(uid|null).
-  function htLogin(name, pin, cb) {
-    var SU = (typeof SHEET_SYNC_URL !== "undefined") ? SHEET_SYNC_URL : "";
-    if (!SU || typeof window.jsonp !== "function") { cb(null); return; }
-    var url = SU + "?action=login&name=" + encodeURIComponent(name) + "&pin=" + encodeURIComponent(pin);
-    window.jsonp(url, function (err, payload) {
-      cb((!err && payload && payload.uid) ? payload.uid : null);
-    });
-  }
-
-  // Re-pull everything for the now-logged-in user (uses whatever refreshers exist)
-  function pullForUser() {
-    ["syncFromSheet", "refreshMeals", "refreshWeights", "refreshGoal", "fetchExercises"].forEach(function (fn) {
-      try { if (typeof window[fn] === "function") window[fn](); } catch (e) {}
-    });
-    try { if (typeof window.render === "function") window.render(); } catch (e) {}
-  }
-
-  function showSetup(isSwitch) {
-    var prev = window.HT_USER;
-    var ov = document.createElement("div");
-    ov.id = "htSetup";
-    ov.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(20,24,28,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;";
-    ov.innerHTML =
-      '<div style="background:#fff;border-radius:16px;max-width:340px;width:100%;padding:24px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;">' +
-        '<div style="font-weight:700;font-size:19px;margin-bottom:4px;">' + (isSwitch ? "Switch user" : "Welcome to Health Track") + '</div>' +
-        '<div style="font-size:13px;color:#667;line-height:1.4;margin-bottom:16px;">Enter the name + PIN your admin set up for you.</div>' +
-        '<input id="htName" placeholder="Name" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #dde;border-radius:10px;font-size:15px;margin-bottom:10px;">' +
-        '<input id="htPin" placeholder="PIN" inputmode="numeric" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid #dde;border-radius:10px;font-size:15px;margin-bottom:6px;">' +
-        '<div id="htErr" style="font-size:12px;color:#c0392b;min-height:16px;margin-bottom:8px;"></div>' +
-        '<button id="htGo" style="width:100%;border:none;background:#0E9E90;color:#fff;border-radius:11px;padding:13px;font-weight:700;font-size:14px;cursor:pointer;">' + (isSwitch ? "Switch" : "Start") + '</button>' +
-        (isSwitch ? '<button id="htCancel" style="width:100%;border:none;background:transparent;color:#889;padding:10px;font-size:13px;cursor:pointer;margin-top:4px;">Cancel</button>' : '') +
-      '</div>';
-    document.body.appendChild(ov);
-
-    var errEl = ov.querySelector("#htErr");
-    var goBtn = ov.querySelector("#htGo");
-    var go = function () {
-      var name = ov.querySelector("#htName").value.trim();
-      var pin = ov.querySelector("#htPin").value.trim();
-      if (name.length < 1 || pin.length < 1) { errEl.textContent = "Enter your name and PIN."; return; }
-      errEl.style.color = "#667"; errEl.textContent = "Checking\u2026"; goBtn.disabled = true;
-      htLogin(name, pin, function (uid) {
-        goBtn.disabled = false;
-        if (!uid) { errEl.style.color = "#c0392b"; errEl.textContent = "Not recognized \u2014 ask the admin to add you."; return; }
-        var changed = !prev || prev.uid !== uid;
-        window.HT_USER = { name: name, uid: uid };
-        writeUser(window.HT_USER);
-        if (isSwitch && changed) {
-          try {
-            Object.keys(localStorage).forEach(function (k) {
-              if (k.indexOf("ulp-") === 0 && k !== UID_KEY) localStorage.removeItem(k);
-            });
-          } catch (e) {}
-          location.reload();
-          return;
-        }
-        ov.remove();
-        installJsonpWrapper();
-        pullForUser();
-        mountChip();
-      });
-    };
-    goBtn.onclick = go;
-    ov.querySelector("#htPin").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
-    var c = ov.querySelector("#htCancel");
-    if (c) c.onclick = function () { ov.remove(); };
-    setTimeout(function () { ov.querySelector("#htName").focus(); }, 50);
-  }
-
-  function mountChip() {
-    if (!window.HT_USER) return;
-    var ex = document.getElementById("htChip");
-    if (ex) ex.remove();
-    var chip = document.createElement("button");
-    chip.id = "htChip";
-    chip.textContent = "\uD83D\uDC64 " + window.HT_USER.name;
-    chip.title = "Tap to switch user";
-    chip.style.cssText = "position:fixed;top:10px;right:10px;z-index:9000;border:1.5px solid #E4E6E9;background:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;color:#565E66;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08);font-family:inherit;";
-    chip.onclick = function () { showSetup(true); };
-    document.body.appendChild(chip);
-  }
-  window.htSwitchUser = function () { showSetup(true); };
-
-  function start() {
-    installJsonpWrapper();
-    if (!window.HT_USER) showSetup(false);
-    else mountChip();
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
-  else start();
-})();
+// Single-user mode: the old name + PIN login is gone. Clear its saved login
+// so nothing from the multi-user version lingers on this device.
+try { localStorage.removeItem("ulp-user-v1"); } catch (e) {}
 
 // ---------- The plan ----------
 const DEFAULT_PLAN = {
@@ -549,6 +416,7 @@ let exNameById = {};   // exercise id -> display name, learned from the Log on s
 let currentDay = "Lower A";
 let currentTab = "home";
 let draft = {};   // { exId: [{w, r}, ...] }
+let draftDirty = false;  // has the user typed into the current draft?
 let editingDay = null;   // which day is open in the Edit tab
 
 // ---------- Storage ----------
@@ -563,7 +431,7 @@ async function load() {
   refreshDays();
   if (!data.seeded) {
     data.seeded = true;
-    await persist();   // mark initialised — no demo seed in multi-user mode
+    await persist();   // mark initialised — no demo seed
   }
 }
 async function persist() {
@@ -576,7 +444,7 @@ async function persist() {
 function savePlan() { data.plan = plan; persist(); pushPlanToSheet(); }
 
 // --- Cross-device plan sync (via the same Google Sheet web app) ---
-function jsonp(url, cb) {
+function jsonp(url, cb, timeoutMs) {
   const fn = "__cb" + Math.random().toString(36).slice(2);
   let done = false;
   const cleanup = () => { delete window[fn]; sc.remove(); clearTimeout(timer); };
@@ -584,7 +452,7 @@ function jsonp(url, cb) {
   const sc = document.createElement("script");
   sc.src = url + (url.includes("?") ? "&" : "?") + "callback=" + fn + "&t=" + Date.now();
   sc.onerror = () => { if (done) return; done = true; cleanup(); cb(new Error("net")); };
-  const timer = setTimeout(() => { if (done) return; done = true; cleanup(); cb(new Error("timeout")); }, 12000);
+  const timer = setTimeout(() => { if (done) return; done = true; cleanup(); cb(new Error("timeout")); }, timeoutMs || 12000);
   document.body.appendChild(sc);
 }
 let _planPushTimer = null;
@@ -599,33 +467,67 @@ function pushPlanToSheet() {
     } catch (e) { /* offline — local copy is still saved */ }
   }, 1200);
 }
-// Pull both the routine (Plan) and the full session history (Log) from the
-// sheet. The sheet is the source of truth for history — local storage is only
-// an offline fallback, overwritten here whenever the sheet is reachable.
+
+// Re-render with fresh data, unless the user is mid-typing (which would
+// steal focus) or mid-way through a meal flow. Their next tap re-renders.
+function renderIfIdle() {
+  const a = document.activeElement;
+  if (a && view.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  if (currentTab === "meals" && mealStage !== "idle") return;
+  render();
+}
+
+// Apply the routine (Plan) + session history (Log) from a sheet payload.
+// The sheet is the source of truth for history — local storage is only an
+// offline fallback, overwritten here whenever the sheet is reachable.
+function applyLogAndPlan(payload) {
+  // 1) Routine first, so exercise ids resolve against the current plan
+  if (payload.plan) {
+    let remote;
+    try { remote = JSON.parse(payload.plan); } catch (e) { remote = null; }
+    if (remote && Object.keys(remote).length && JSON.stringify(remote) !== JSON.stringify(plan)) {
+      plan = remote; data.plan = plan;
+    }
+  } else {
+    pushPlanToSheet();   // seed the sheet from this device
+  }
+  refreshDays();
+  if (editingDay && !plan[editingDay]) editingDay = null;
+  // 2) History from the Log tab
+  const sess = reconstructSessions(payload.rows);
+  if (sess) { data.sessions = sess; }
+  persist();
+  // Don't wipe sets the user has already typed in
+  if (draftDirty) reconcileDraft(currentDay); else buildDraft(currentDay);
+}
 function syncFromSheet() {
   if (!SHEET_SYNC_URL) return;
   jsonp(SHEET_SYNC_URL, (err, payload) => {
     if (err || !payload) return;
-    // 1) Routine first, so exercise ids resolve against the current plan
-    if (payload.plan) {
-      let remote;
-      try { remote = JSON.parse(payload.plan); } catch (e) { remote = null; }
-      if (remote && Object.keys(remote).length && JSON.stringify(remote) !== JSON.stringify(plan)) {
-        plan = remote; data.plan = plan;
-      }
-    } else {
-      pushPlanToSheet();   // seed the sheet from this device
-    }
-    refreshDays();
-    if (editingDay && !plan[editingDay]) editingDay = null;
-    // 2) History from the Log tab
-    const sess = reconstructSessions(payload.rows);
-    if (sess) { data.sessions = sess; }
-    persist();
-    buildDraft(currentDay);
-    render();
+    applyLogAndPlan(payload);
+    renderIfIdle();
   });
 }
+
+// One request on startup instead of five: log, plan, meals, weights, goal
+// and the exercise list all come back together, then we render once.
+function bootFromSheet() {
+  if (!SHEET_SYNC_URL) return;
+  jsonp(SHEET_SYNC_URL + "?action=boot", (err, payload) => {
+    if (err || !payload || !payload.boot) {
+      // Older backend or a network hiccup — fall back to the individual pulls
+      syncFromSheet(); refreshMeals(); refreshWeights(); refreshGoal(); fetchExercises();
+      return;
+    }
+    applyLogAndPlan(payload);
+    if (Array.isArray(payload.meals)) { meals = mapMealRows(payload.meals); cacheMeals(); }
+    if (Array.isArray(payload.weights)) applyWeightRows(payload.weights);
+    applyGoal(payload.goal);
+    applyExercises(payload.exercises);
+    renderIfIdle();
+  }, 25000);
+}
+
 // Turn flat Log rows [date, day, exercise, set, weight, reps] back into sessions.
 // Returns null when there's no data, so we never clobber what we have.
 function reconstructSessions(rows) {
@@ -749,6 +651,7 @@ function rowsForExercise(day, ex) {
 }
 function buildDraft(day) {
   draft = {};
+  draftDirty = false;
   plan[day].ex.forEach(ex => { draft[ex.id] = rowsForExercise(day, ex); });
 }
 // Keep the in-progress draft in step with plan edits without wiping typed values
@@ -989,14 +892,14 @@ function renderLog() {
     currentDay = b.dataset.day; buildDraft(currentDay); render();
   });
   view.querySelectorAll("input[data-ex]").forEach(inp => {
-    inp.oninput = () => { draft[inp.dataset.ex][+inp.dataset.i][inp.dataset.k] = inp.value; };
+    inp.oninput = () => { draft[inp.dataset.ex][+inp.dataset.i][inp.dataset.k] = inp.value; draftDirty = true; };
   });
   view.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
-    draft[b.dataset.add].push({ w:"", r:"" }); render();
+    draft[b.dataset.add].push({ w:"", r:"" }); draftDirty = true; render();
   });
   view.querySelectorAll("[data-rem]").forEach(b => b.onclick = () => {
     const arr = draft[b.dataset.rem];
-    if (arr.length > 1) { arr.pop(); render(); }
+    if (arr.length > 1) { arr.pop(); draftDirty = true; render(); }
   });
 }
 
@@ -1021,7 +924,7 @@ async function saveSession() {
   if (idx >= 0) data.sessions[idx] = entry; else data.sessions.push(entry);
 
   const ok = await persist();
-  if (ok) syncToSheet();
+  if (ok) { syncToSheet(); draftDirty = false; }
   hint.textContent = ok
     ? (SHEET_SYNC_URL ? "Saved ✓  — synced to your sheet" : "Saved ✓  — carried into your history")
     : "Couldn't save — try again";
@@ -1400,6 +1303,9 @@ function loadMealsCache() {
   try { const v = localStorage.getItem(MEALS_KEY); if (v) meals = JSON.parse(v); } catch (e) {}
 }
 function cacheMeals() { try { localStorage.setItem(MEALS_KEY, JSON.stringify(meals)); } catch (e) {} }
+function mapMealRows(rows) {
+  return rows.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+}
 
 function fileToCompressedBase64(file, maxDim, quality) {
   return new Promise((resolve, reject) => {
@@ -1456,7 +1362,7 @@ function pollForMeal(ts, tries, cb) {
     if (!err && payload && payload.meals) {
       const found = payload.meals.find(r => +r[0] === ts);
       if (found) {
-        meals = payload.meals.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+        meals = mapMealRows(payload.meals);
         cacheMeals(); cb(null, found); return;
       }
     }
@@ -1469,15 +1375,15 @@ function fetchMeals(cb) {
   if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
   jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
     if (!err && payload && payload.meals) {
-      meals = payload.meals.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+      meals = mapMealRows(payload.meals);
       cacheMeals();
     }
     if (cb) cb();
   });
 }
 function refreshMeals() { fetchMeals(() => {
-  if (currentTab === "home") render();
-  else if (currentTab === "meals" && mealStage === "idle") renderMeals();
+  if (currentTab === "home") renderIfIdle();
+  else if (currentTab === "meals" && mealStage === "idle") renderIfIdle();
 }); }
 
 async function onMealPhoto(e) {
@@ -1674,17 +1580,20 @@ function pushGoalToSheet(kg) {
       body: JSON.stringify({ action: "saveGoal", token: APP_TOKEN, kg }) });
   } catch (e) { /* offline — local copy is still saved */ }
 }
+function applyGoal(g) {
+  if (g != null && g !== "" && !isNaN(+g) && +g > 0) {
+    WEIGHT_GOAL = +g;
+    try { localStorage.setItem(GOAL_KEY, String(WEIGHT_GOAL)); } catch (e) {}
+  }
+}
 function fetchGoal(cb) {
   if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
   jsonp(SHEET_SYNC_URL + "?action=getGoal", (err, payload) => {
-    if (!err && payload && payload.goal != null && payload.goal !== "" && !isNaN(+payload.goal) && +payload.goal > 0) {
-      WEIGHT_GOAL = +payload.goal;
-      try { localStorage.setItem(GOAL_KEY, String(WEIGHT_GOAL)); } catch (e) {}
-    }
+    if (!err && payload) applyGoal(payload.goal);
     if (cb) cb();
   });
 }
-function refreshGoal() { fetchGoal(() => { if (currentTab === "home" || currentTab === "weight") render(); }); }
+function refreshGoal() { fetchGoal(() => { if (currentTab === "home" || currentTab === "weight") renderIfIdle(); }); }
 let weights = [];   // [{date, kg}]
 let goalEditing = false;   // is the Goal stat showing its inline editor?
 
@@ -1693,17 +1602,19 @@ const EXLIST_KEY = "ulp-exlist-v1";
 let exerciseList = [];        // [{name, type, sets, lo, hi, note}]
 let pickingExercise = false;  // is the routine builder showing the exercise chooser?
 function loadExListCache() { try { const v = localStorage.getItem(EXLIST_KEY); if (v) exerciseList = JSON.parse(v); } catch (e) {} }
+function applyExercises(list) {
+  if (!Array.isArray(list)) return;
+  exerciseList = list;
+  try { localStorage.setItem(EXLIST_KEY, JSON.stringify(exerciseList)); } catch (e) {}
+}
 function fetchExercises(cb) {
   if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
   jsonp(SHEET_SYNC_URL + "?action=getExercises", (err, payload) => {
-    if (!err && payload && Array.isArray(payload.exercises)) {
-      exerciseList = payload.exercises;
-      try { localStorage.setItem(EXLIST_KEY, JSON.stringify(exerciseList)); } catch (e) {}
-    }
+    if (!err && payload) applyExercises(payload.exercises);
     if (cb) cb();
   });
 }
-function refreshExercises() { fetchExercises(() => { if (currentTab === "edit" && editingDay) render(); }); }
+function refreshExercises() { fetchExercises(() => { if (currentTab === "edit" && editingDay) renderIfIdle(); }); }
 function loadWeightCache() { try { const v = localStorage.getItem(WEIGHT_KEY); if (v) weights = JSON.parse(v); } catch (e) {} }
 function cacheWeights() { try { localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights)); } catch (e) {} }
 function sortedWeights() { return [...weights].sort((a, b) => a.date.localeCompare(b.date)); }
@@ -1724,25 +1635,27 @@ function pushWeightToSheet(date, kg) {
       body: JSON.stringify({ action: "saveWeight", token: APP_TOKEN, date, kg }) });
   } catch (e) { /* offline — local copy is still saved */ }
 }
+// Merge sheet weights with any local days the sheet hasn't received yet
+function applyWeightRows(rows) {
+  const byDate = {};
+  rows.forEach(r => {
+    const d = String(r[0]).slice(0, 10), kg = +r[1];
+    if (d && !isNaN(kg)) byDate[d] = kg;
+  });
+  // keep any locally-logged days the sheet hasn't received yet, and re-push them
+  weights.forEach(w => { if (!(w.date in byDate)) { byDate[w.date] = w.kg; pushWeightToSheet(w.date, w.kg); } });
+  weights = Object.keys(byDate).sort().map(d => ({ date: d, kg: byDate[d] }));
+  cacheWeights();
+}
 function fetchWeights(cb) {
   if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
   jsonp(SHEET_SYNC_URL + "?action=getWeights", (err, payload) => {
-    if (!err && payload && payload.weights) {
-      const byDate = {};
-      payload.weights.forEach(r => {
-        const d = String(r[0]).slice(0, 10), kg = +r[1];
-        if (d && !isNaN(kg)) byDate[d] = kg;
-      });
-      // keep any locally-logged days the sheet hasn't received yet, and re-push them
-      weights.forEach(w => { if (!(w.date in byDate)) { byDate[w.date] = w.kg; pushWeightToSheet(w.date, w.kg); } });
-      weights = Object.keys(byDate).sort().map(d => ({ date: d, kg: byDate[d] }));
-      cacheWeights();
-    }
+    if (!err && payload && payload.weights) applyWeightRows(payload.weights);
     if (cb) cb();
   });
 }
 function refreshWeights() { fetchWeights(() => {
-  if (currentTab === "home" || currentTab === "weight") render();
+  if (currentTab === "home" || currentTab === "weight") renderIfIdle();
 }); }
 
 function renderWeight() {
@@ -1847,11 +1760,9 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
   loadGoal();
   loadExListCache();
   buildDraft(currentDay);
-  render();
-  syncFromSheet();       // pull routine + full session history from the sheet
-  refreshMeals();        // pull logged meals so the home graphs fill in
-  refreshWeights();      // pull logged bodyweight from the sheet
-  refreshGoal();         // pull the target weight from the sheet
-  fetchExercises();      // pull the standardised exercise list from the sheet
+  render();              // show cached data instantly
+  bootFromSheet();       // then one request pulls everything fresh from the sheet
 })();
 </script>
+</body>
+</html>
