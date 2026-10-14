@@ -289,6 +289,18 @@
   .mc-actions { display:flex; gap:8px; margin-top:12px; }
   .mc-cancel { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:12px; font-family:var(--display); font-weight:600; font-size:13.5px; color:var(--ink-soft); cursor:pointer; }
   .mc-confirm { flex:2; border:none; background:var(--accent); color:#fff; border-radius:11px; padding:12px; font-family:var(--display); font-weight:700; font-size:13.5px; cursor:pointer; box-shadow:0 4px 12px rgba(14,158,144,.25); }
+  .mc-hint { font-size:11.5px; color:var(--ink-soft); margin:-6px 0 12px; }
+  .mc-sec { font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin:14px 0 6px; }
+  .oilrow { display:flex; gap:6px; flex-wrap:wrap; }
+  .oilchip { border:1.5px solid var(--line); background:#FBFBFC; border-radius:20px; padding:7px 12px; font-family:var(--display); font-weight:600; font-size:12px; color:var(--ink-soft); cursor:pointer; }
+  .oilchip.on { border-color:var(--accent); background:var(--up-bg); color:var(--accent-ink); }
+  .mealentry.tap { cursor:pointer; }
+  .me-break { margin-top:10px; border-top:1px solid var(--line); padding-top:6px; }
+  .mb-row { display:flex; justify-content:space-between; gap:10px; padding:4px 0; font-size:12.5px; }
+  .mb-name { color:var(--ink-soft); }
+  .mb-val { font-family:var(--mono); font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .mb-none { font-size:12px; color:var(--ink-faint); padding:4px 0; }
+  .me-edit { width:100%; margin-top:8px; border:1.5px solid rgba(14,158,144,.35); background:transparent; border-radius:10px; padding:9px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
 
   .toolbtn {
     width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
@@ -1411,13 +1423,26 @@ let pendingTs = null;
 let pendingItems = [];
 let pendingNote = "";
 let mealDeleteTs = null;       // ts of the meal currently asking "delete?"
+let pendingOil = "unsure";     // none | little | lot | unsure
+let pendingDate = null;        // date for the meal being confirmed (editing keeps the original)
+let pendingReplaceTs = null;   // when editing, the ts of the meal being replaced
+let mealOpenTs = null;         // ts of the meal whose breakdown is expanded
+const OIL_CHOICES = [["none","None"],["little","A little"],["lot","A lot"],["unsure","Not sure"]];
 
 function loadMealsCache() {
   try { const v = localStorage.getItem(MEALS_KEY); if (v) meals = JSON.parse(v); } catch (e) {}
 }
 function cacheMeals() { try { localStorage.setItem(MEALS_KEY, JSON.stringify(meals)); } catch (e) {} }
 function mapMealRows(rows) {
-  return rows.map(r => ({ ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4] })).sort((a, b) => b.ts - a.ts);
+  return rows.map(r => {
+    let items = null;
+    try { if (r[5]) items = JSON.parse(r[5]); } catch (e) { items = null; }
+    return { ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4], items };
+  }).sort((a, b) => b.ts - a.ts);
+}
+function resetPendingMeal() {
+  pendingTs = null; pendingItems = []; pendingNote = "";
+  pendingOil = "unsure"; pendingDate = null; pendingReplaceTs = null;
 }
 
 function fileToCompressedBase64(file, maxDim, quality) {
@@ -1452,22 +1477,22 @@ function pollDetect(ts, tries) {
   jsonp(SHEET_SYNC_URL + "?action=getPending&ts=" + ts, (err, payload) => {
     if (mealStage !== "detecting" || pendingTs !== ts) return;
     if (!err && payload && payload.items) {
-      pendingItems = payload.items.map(it => ({ name: it.name || "", qty: (it.qty != null ? it.qty : 1), unit: it.unit || "" }));
+      pendingItems = payload.items.map(it => ({ name: it.name || "", qty: (it.qty != null ? it.qty : ""), unit: it.unit || "g" }));
       pendingNote = "";
       mealStage = "confirming";
       renderMeals();
       return;
     }
-    if (tries <= 0) { mealStage = "idle"; renderMeals(); mealHint("Couldn't detect that photo — check Executions, or try again."); return; }
+    if (tries <= 0) { mealStage = "idle"; resetPendingMeal(); renderMeals(); mealHint("Couldn't detect that photo — check Executions, or try again."); return; }
     setTimeout(() => pollDetect(ts, tries - 1), 2500);
   });
 }
 
-function postFinalize(ts, date, items, note) {
+function postFinalize(ts, date, items, note, oil, replaceTs) {
   try {
     fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "finalizeMeal", token: APP_TOKEN, ts, date, items, note }) });
+      body: JSON.stringify({ action: "finalizeMeal", token: APP_TOKEN, ts, date, items, note, oil, replaceTs }) });
   } catch (e) {}
 }
 function pollForMeal(ts, tries, cb) {
@@ -1508,6 +1533,7 @@ async function onMealPhoto(e) {
   let b64;
   try { b64 = await fileToCompressedBase64(f, 1024, 0.7); }
   catch (err) { mealHint("Couldn't read that photo — try again."); return; }
+  resetPendingMeal();
   pendingTs = Date.now();
   mealStage = "detecting";
   renderMeals();
@@ -1521,29 +1547,52 @@ function startManualMeal() {
   if (!SHEET_SYNC_URL) { mealHint("Sheet sync isn't set up."); return; }
   if (!APP_TOKEN) { mealHint("Set your APP_TOKEN in the code first."); return; }
   mealDeleteTs = null;
+  resetPendingMeal();
   pendingTs = Date.now();
-  pendingItems = [{ name:"", qty:1, unit:"" }];
-  pendingNote = "";
+  pendingItems = [{ name:"", qty:"", unit:"g" }];
   mealStage = "confirming";
   renderMeals();
 }
 
+// Re-open a logged meal on the confirm screen with its itemised grams, so one
+// wrong item can be fixed and the meal re-estimated (it replaces the old one).
+function editMeal(ts) {
+  const m = meals.find(x => +x.ts === +ts); if (!m) return;
+  resetPendingMeal();
+  mealDeleteTs = null;
+  pendingTs = Date.now();
+  pendingReplaceTs = m.ts;
+  pendingDate = m.date || isoToday();
+  if (m.items && m.items.length) {
+    pendingItems = m.items.map(it => ({ name: it.name || "", qty: it.grams || "", unit: "g" }));
+    pendingOil = "none";      // any oil the estimate added is already a line item
+  } else {
+    pendingItems = [{ name: m.label || "", qty: 1, unit: "serving" }];
+  }
+  mealStage = "confirming";
+  renderMeals();
+  window.scrollTo(0, 0);
+}
+
 function confirmMeal() {
-  const ts = pendingTs, date = isoToday();
-  const items = pendingItems.slice(), note = pendingNote;
+  pendingItems = pendingItems.filter(it => String(it.name || "").trim());
+  if (!pendingItems.length) { mealHint("Add at least one food first."); return; }
+  const ts = pendingTs, date = pendingDate || isoToday();
+  const items = pendingItems.slice(), note = pendingNote, oil = pendingOil, replaceTs = pendingReplaceTs;
   mealStage = "estimating";
   renderMeals();
-  postFinalize(ts, date, items, note);
-  pollForMeal(ts, 6, (err) => {
+  postFinalize(ts, date, items, note, oil, replaceTs);
+  pollForMeal(ts, 12, (err) => {
     if (pendingTs !== ts) return;
-    mealStage = "idle"; pendingTs = null; pendingItems = []; pendingNote = "";
+    mealStage = "idle"; resetPendingMeal();
+    if (!err) mealOpenTs = ts;     // show the new breakdown straight away
     renderMeals();
     if (err) mealHint("Still estimating — switch tabs and back to refresh.");
   });
 }
 
 function cancelMeal() {
-  mealStage = "idle"; pendingTs = null; pendingItems = []; pendingNote = "";
+  mealStage = "idle"; resetPendingMeal();
   renderMeals();
 }
 
@@ -1571,20 +1620,25 @@ function mealConfirmHtml() {
     rows += `<div class="mc-item">
       <input class="mc-name" data-i="${i}" data-f="name" value="${escAttr(it.name)}" placeholder="Food">
       <div class="mc-row">
-        <input class="mc-qty" data-i="${i}" data-f="qty" inputmode="decimal" value="${escAttr(String(it.qty))}" placeholder="qty">
-        <input class="mc-unit" data-i="${i}" data-f="unit" value="${escAttr(it.unit)}" placeholder="unit">
+        <input class="mc-qty" data-i="${i}" data-f="qty" inputmode="decimal" value="${escAttr(String(it.qty))}" placeholder="amount">
+        <input class="mc-unit" data-i="${i}" data-f="unit" value="${escAttr(it.unit)}" placeholder="g">
         <button class="mc-del" data-del="${i}">✕</button>
       </div>
     </div>`;
   });
+  const chips = OIL_CHOICES.map(([v, l]) =>
+    `<button class="oilchip ${pendingOil === v ? "on" : ""}" data-oil="${v}">${l}</button>`).join("");
   return `<div class="mealconfirm">
-    <div class="mc-title">Confirm what you ate</div>
+    <div class="mc-title">${pendingReplaceTs ? "Edit meal" : "Confirm what you ate"}</div>
+    <div class="mc-hint">Amounts in grams are used exactly — weigh the main item if you can.</div>
     ${rows}
     <button class="mc-add" id="mcAdd">+ Add item</button>
-    <textarea class="mc-note" id="mcNote" placeholder="Anything to add? e.g. extra olive oil, large portion">${escHtml(pendingNote)}</textarea>
+    <div class="mc-sec">Cooked in oil or butter?</div>
+    <div class="oilrow">${chips}</div>
+    <textarea class="mc-note" id="mcNote" placeholder="Anything else? e.g. creamy sauce, skin on, restaurant portion">${escHtml(pendingNote)}</textarea>
     <div class="mc-actions">
       <button class="mc-cancel" id="mcCancel">Cancel</button>
-      <button class="mc-confirm" id="mcConfirm">Confirm &amp; estimate</button>
+      <button class="mc-confirm" id="mcConfirm">${pendingReplaceTs ? "Re-estimate" : "Confirm &amp; estimate"}</button>
     </div>
   </div>`;
 }
@@ -1637,10 +1691,19 @@ function renderMeals() {
           </div>
         </div>`;
       } else {
-        html += `<div class="mealentry">
+        // Tap a meal to see where its calories come from, and to fix it
+        let brk = "";
+        if (+m.ts === +mealOpenTs) {
+          brk = `<div class="me-break">` + (m.items && m.items.length
+            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${it.kcal} kcal · ${it.protein_g} g</span></div>`).join("")
+            : `<div class="mb-none">No item breakdown — this meal was logged before itemised estimates.</div>`)
+            + `<button class="me-edit" data-mealedit="${m.ts}">Edit &amp; re-estimate</button></div>`;
+        }
+        html += `<div class="mealentry tap" data-mealopen="${m.ts}">
           <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span>
             <span class="me-right"><span class="me-time">${tt}</span><button class="me-del" data-mealdel="${m.ts}" aria-label="Delete meal">✕</button></span></div>
           <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span></div>
+          ${brk}
         </div>`;
       }
     });
@@ -1649,9 +1712,19 @@ function renderMeals() {
   view.innerHTML = html;
 
   // Delete controls on logged meals (active in any stage)
-  view.querySelectorAll("[data-mealdel]").forEach(b => b.onclick = () => { mealDeleteTs = +b.dataset.mealdel; renderMeals(); });
+  view.querySelectorAll("[data-mealdel]").forEach(b => b.onclick = (e) => { e.stopPropagation(); mealDeleteTs = +b.dataset.mealdel; renderMeals(); });
   view.querySelectorAll("[data-mealdelyes]").forEach(b => b.onclick = () => deleteMeal(+b.dataset.mealdelyes));
   view.querySelectorAll("[data-mealdelno]").forEach(b => b.onclick = () => { mealDeleteTs = null; renderMeals(); });
+  view.querySelectorAll("[data-mealopen]").forEach(el => el.onclick = () => {
+    const ts = +el.dataset.mealopen;
+    mealOpenTs = (+mealOpenTs === ts) ? null : ts;
+    renderMeals();
+  });
+  view.querySelectorAll("[data-mealedit]").forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    if (mealStage !== "idle") { mealHint("Finish or cancel the meal you're adding first."); return; }
+    editMeal(+b.dataset.mealedit);
+  });
 
   if (mealStage === "idle") {
     const file = document.getElementById("mealFile");
@@ -1665,7 +1738,8 @@ function renderMeals() {
     const note = document.getElementById("mcNote");
     if (note) note.oninput = () => { pendingNote = note.value; };
     const add = document.getElementById("mcAdd");
-    if (add) add.onclick = () => { pendingItems.push({ name:"", qty:1, unit:"" }); renderMeals(); };
+    if (add) add.onclick = () => { pendingItems.push({ name:"", qty:"", unit:"g" }); renderMeals(); };
+    view.querySelectorAll("[data-oil]").forEach(b => b.onclick = () => { pendingOil = b.dataset.oil; renderMeals(); });
     view.querySelectorAll(".mc-del").forEach(b => b.onclick = () => { pendingItems.splice(+b.dataset.del, 1); renderMeals(); });
     const cf = document.getElementById("mcConfirm"); if (cf) cf.onclick = confirmMeal;
     const cx = document.getElementById("mcCancel"); if (cx) cx.onclick = cancelMeal;
