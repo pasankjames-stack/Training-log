@@ -88,6 +88,20 @@
   .ex-name { font-family: var(--display); font-weight: 700; font-size: 15.5px; letter-spacing: -.01em; }
   .ex-target { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); white-space: nowrap; }
   .ex-note { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+  .ex-last { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--ink); margin-top: 7px; }
+  .ex-last span { font-weight: 400; color: var(--ink-faint); margin-right: 4px; }
+
+  /* ---- Log: routine picker + header ---- */
+  .logpick { font-family: var(--display); font-weight: 700; font-size: 14px; margin: 2px 2px 10px; }
+  .day .dlast.going { color: var(--accent-ink); font-weight: 700; }
+  .loghead { margin: 0 2px 14px; }
+  .lh-name { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: -.01em; }
+  .lh-focus { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+
+  /* ---- History: delete ---- */
+  .hdel { width: 100%; margin-top: 10px; border: 1.5px dashed var(--line); background: transparent; border-radius: 10px;
+    padding: 9px; font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; }
+  .hdel:active { background: var(--hold-bg); }
 
   .chip {
     display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono);
@@ -419,6 +433,8 @@ let currentDay = "Lower A";
 let currentTab = "home";
 let draft = {};   // { exId: [{w, r}, ...] }
 let draftDirty = false;  // has the user typed into the current draft?
+let logPicked = false;   // Log tab: has a routine been chosen yet? (routine list shows until then)
+let histDeleteKey = null; // History: "date|day" of the workout asking "delete?"
 let editingDay = null;   // which day is open in the Edit tab
 
 // ---------- Storage ----------
@@ -577,14 +593,7 @@ function escAttr(t){return String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt
 // localStorage stays the source of truth, so a failed sync never loses data.
 async function syncToSheet() {
   if (!SHEET_SYNC_URL) return;
-  const rows = [];
-  data.sessions.forEach(s => {
-    const dp = plan[s.day]; if (!dp) return;
-    dp.ex.forEach(ex => {
-      const sets = s.ex[ex.id]; if (!sets) return;
-      sets.forEach((x, i) => rows.push([s.date, s.day, ex.name, i+1, ex.type==="kg"?(x.w||""):"BW", x.r||""]));
-    });
-  });
+  const rows = sessionRows();   // every exercise, even ones since removed from a routine
   try {
     await fetch(SHEET_SYNC_URL, {
       method: "POST", mode: "no-cors",
@@ -626,10 +635,9 @@ function lastSession(day) {
 }
 function unitLabel(ex) { return ex.type === "sec" ? "sec" : (ex.type === "bw" ? "reps" : "kg"); }
 
-// Suggestion based on last session
-function suggestion(ex, last) {
-  if (!last || !last.ex[ex.id]) return { cls:"new", text:"First time — start light" };
-  const sets = last.ex[ex.id];
+// Suggestion based on the last time this exercise was done
+function suggestion(ex, sets) {
+  if (!sets || !sets.length) return { cls:"new", text:"First time — start light" };
   const reps = sets.map(s => +s.r || 0);
   const allTop = reps.every(r => r >= ex.hi);
   const allMin = reps.every(r => r >= ex.lo);
@@ -642,10 +650,71 @@ function suggestion(ex, last) {
   return { cls:"hold", text:"Hold weight — chase the rep target" };
 }
 
-// ---------- Build draft for a day (prefilled from last session) ----------
+// ---------- Exercise lookups across all sessions ----------
+function exNameIn(id) { return exNameById[id] || nameFromPlan(id) || ""; }
+function typeFor(id) {
+  for (const k of DAYS) { const f = plan[k].ex.find(e => e.id === id); if (f) return f.type; }
+  return "kg";
+}
+// The most recent session (any routine) where this exercise was actually done.
+// Matches by id first, then by name — so "Calf raises" in Lower A and Lower B
+// count as the same exercise.
+function lastForExercise(ex) {
+  const sorted = data.sessions.slice().sort((a, b) => b.date.localeCompare(a.date));
+  for (const s of sorted) {
+    let sets = s.ex && s.ex[ex.id];
+    if (!sets && ex.name) {
+      const id = Object.keys(s.ex || {}).find(k => exNameIn(k) === ex.name);
+      if (id) sets = s.ex[id];
+    }
+    if (sets && sets.some(x => x && x.r !== "" && x.r != null)) return { date: s.date, sets };
+  }
+  return null;
+}
+// "Last · Sat 10 Oct  40 kg × 10, 10, 12"
+function lastLineHtml(ex, last) {
+  if (!last) return "";
+  const done = last.sets.filter(x => x && x.r !== "" && x.r != null);
+  if (!done.length) return "";
+  let txt;
+  if (ex.type === "kg") {
+    const ws = done.map(x => (x.w === "" || x.w == null) ? "–" : String(x.w));
+    txt = ws.every(w => w === ws[0])
+      ? `${ws[0]} kg × ${done.map(x => x.r).join(", ")}`
+      : done.map((x, i) => `${ws[i]} kg × ${x.r}`).join(" · ");
+  } else if (ex.type === "sec") {
+    txt = done.map(x => x.r + "s").join(", ");
+  } else {
+    txt = done.map(x => x.r).join(", ") + " reps";
+  }
+  return `<div class="ex-last"><span>Last · ${prettyDate(last.date)}</span> ${escHtml(txt)}</div>`;
+}
+// Every exercise in a session: current-plan order first, then any that have
+// since been removed from the routine (so their history is never lost).
+function sessionExercises(s) {
+  const out = [], seen = new Set(), dp = plan[s.day];
+  if (dp) dp.ex.forEach(ex => { if (s.ex[ex.id]) { out.push({ id: ex.id, name: ex.name, type: ex.type }); seen.add(ex.id); } });
+  Object.keys(s.ex || {}).forEach(id => {
+    if (seen.has(id)) return;
+    out.push({ id, name: exNameIn(id) || id, type: typeFor(id) });
+  });
+  return out;
+}
+// Flat Log rows for the sheet / CSV: [date, day, exercise, set, weight, reps]
+function sessionRows() {
+  const rows = [];
+  data.sessions.forEach(s => {
+    sessionExercises(s).forEach(ex => {
+      s.ex[ex.id].forEach((x, i) => rows.push([s.date, s.day, ex.name, i+1, ex.type==="kg"?(x.w||""):"BW", x.r||""]));
+    });
+  });
+  return rows;
+}
+
+// ---------- Build draft for a day (prefilled from the last time each exercise was done) ----------
 function rowsForExercise(day, ex) {
-  const last = lastSession(day);
-  const prev = last && last.ex[ex.id];
+  const last = lastForExercise(ex);
+  const prev = last && last.sets;
   const n = prev ? prev.length : ex.sets;
   const out = [];
   for (let i = 0; i < n; i++) { const pp = prev && prev[i]; out.push({ w: pp ? pp.w : "", r: pp ? pp.r : "" }); }
@@ -675,12 +744,14 @@ function render() {
   else if (currentTab === "weight") renderWeight();
   else if (currentTab === "edit") renderEdit();
   else renderHome();
-  savebar.style.display = currentTab === "log" ? "block" : "none";
+  savebar.style.display = (currentTab === "log" && logPicked) ? "block" : "none";
   wireHome();
 }
 
 function goTab(tab) {
-  currentTab = tab; editingDay = null; goalEditing = false; pickingExercise = false; render();
+  currentTab = tab; editingDay = null; goalEditing = false; pickingExercise = false; histDeleteKey = null;
+  if (tab === "log") logPicked = false;   // always open on the routine list
+  render();
   if (tab === "meals") refreshMeals();
   else if (tab === "weight") refreshWeights();
   else if (tab === "edit") refreshExercises();
@@ -842,23 +913,43 @@ function renderHome() {
   view.querySelectorAll(".navtile").forEach(b => b.onclick = () => goTab(b.dataset.go));
 }
 
-function renderLog() {
-  reconcileDraft(currentDay);
-  let html = '<div class="days">';
+// Log tab, step 1: just the routines. Exercises appear once one is tapped.
+function renderLogPicker() {
+  let html = `<div class="logpick">Choose a routine</div><div class="days">`;
   DAYS.forEach(day => {
+    const going = day === currentDay && draftDirty;
     const last = lastSession(day);
-    const lastTxt = last ? `last ${prettyDate(last.date)}` : "not logged yet";
-    html += `<button class="day ${day===currentDay?"on":""}" data-day="${day}">
-      <div class="dname">${day}</div>
-      <div class="dfocus">${plan[day].focus}</div>
-      <div class="dlast">${lastTxt}</div>
+    const lastTxt = going ? "in progress" : (last ? `last ${prettyDate(last.date)}` : "not logged yet");
+    html += `<button class="day ${going?"on":""}" data-day="${escAttr(day)}">
+      <div class="dname">${escHtml(day)}</div>
+      <div class="dfocus">${escHtml(plan[day].focus || "")}</div>
+      <div class="dlast${going?" going":""}">${lastTxt}</div>
     </button>`;
   });
   html += "</div>";
+  view.innerHTML = html;
+  view.querySelectorAll(".day").forEach(b => b.onclick = () => {
+    const day = b.dataset.day;
+    // Re-opening the routine you're midway through keeps what you've typed
+    if (day !== currentDay || !draftDirty) { currentDay = day; buildDraft(currentDay); }
+    logPicked = true;
+    render();
+    window.scrollTo(0, 0);
+  });
+}
 
-  const last = lastSession(currentDay);
-  plan[currentDay].ex.forEach(ex => {
-    const sug = suggestion(ex, last);
+// Log tab, step 2: the chosen routine's exercises
+function renderLog() {
+  if (!logPicked || !plan[currentDay]) { logPicked = false; renderLogPicker(); return; }
+  reconcileDraft(currentDay);
+  const dp = plan[currentDay];
+  let html = `<button class="backbtn" id="logBack">← All routines</button>
+    <div class="loghead"><div class="lh-name">${escHtml(currentDay)}</div>${dp.focus ? `<div class="lh-focus">${escHtml(dp.focus)}</div>` : ""}</div>`;
+  if (!dp.ex.length) html += `<div class="empty"><div class="big">No exercises yet</div>Add some in Routines.</div>`;
+
+  dp.ex.forEach(ex => {
+    const last = lastForExercise(ex);
+    const sug = suggestion(ex, last && last.sets);
     const targetStr = ex.type === "sec"
       ? `${ex.sets} × ${ex.lo}–${ex.hi}s`
       : (ex.lo === ex.hi ? `${ex.sets} × ${ex.lo}` : `${ex.sets} × ${ex.lo}–${ex.hi}`);
@@ -879,6 +970,7 @@ function renderLog() {
     html += `<div class="ex">
       <div class="ex-top"><div class="ex-name">${ex.name}</div><div class="ex-target">${targetStr}</div></div>
       ${ex.note ? `<div class="ex-note">${ex.note}</div>` : ""}
+      ${lastLineHtml(ex, last)}
       <span class="chip ${sug.cls}">${sug.text}</span>
       <div class="sets">${rows}</div>
       <div class="setctl">
@@ -890,9 +982,7 @@ function renderLog() {
 
   view.innerHTML = html;
 
-  view.querySelectorAll(".day").forEach(b => b.onclick = () => {
-    currentDay = b.dataset.day; buildDraft(currentDay); render();
-  });
+  document.getElementById("logBack").onclick = () => { logPicked = false; render(); window.scrollTo(0, 0); };
   view.querySelectorAll("input[data-ex]").forEach(inp => {
     inp.oninput = () => { draft[inp.dataset.ex][+inp.dataset.i][inp.dataset.k] = inp.value; draftDirty = true; };
   });
@@ -906,6 +996,7 @@ function renderLog() {
 }
 
 async function saveSession() {
+  if (!logPicked || !plan[currentDay]) return;
   const exObj = {};
   let any = false;
   plan[currentDay].ex.forEach(ex => {
@@ -941,21 +1032,27 @@ function renderHistory() {
   const sorted = [...data.sessions].sort((a,b) => b.date.localeCompare(a.date));
   let html = '';
   sorted.forEach((s, si) => {
-    const dayPlan = plan[s.day];
     let body = "";
-    if (dayPlan) dayPlan.ex.forEach(ex => {
+    sessionExercises(s).forEach(ex => {
       const sets = s.ex[ex.id];
-      if (!sets) return;
       const val = sets.map(x => {
         if (ex.type === "kg") return `${x.w||"–"}×${x.r||"–"}`;
         if (ex.type === "sec") return `${x.r||"–"}s`;
         return `${x.r||"–"}`;
       }).join("  ");
-      body += `<div class="hex"><span class="hn">${ex.name}</span><span class="hv">${val}</span></div>`;
+      body += `<div class="hex"><span class="hn">${escHtml(ex.name)}</span><span class="hv">${val}</span></div>`;
     });
+    const confirming = (s.date + "|" + s.day) === histDeleteKey;
+    body += confirming
+      ? `<div class="me-delconfirm">
+          <span class="me-delq">Delete this workout?</span>
+          <button class="me-delyes" data-hdelyes="${si}">Delete</button>
+          <button class="me-delno" data-hdelno="1">Cancel</button>
+        </div>`
+      : `<button class="hdel" data-hdel="${si}">Delete workout</button>`;
     html += `<div class="hentry" data-h="${si}">
-      <div class="hentry-top"><div class="hday">${s.day}</div><div class="hdate">${prettyDate(s.date)}</div></div>
-      <div class="hbody" id="hb-${si}">${body}</div>
+      <div class="hentry-top"><div class="hday">${escHtml(s.day)}</div><div class="hdate">${prettyDate(s.date)}</div></div>
+      <div class="hbody${confirming ? " open" : ""}" id="hb-${si}">${body}</div>
     </div>`;
   });
   html += exerciseProgressHtml();
@@ -970,20 +1067,34 @@ function renderHistory() {
   view.querySelectorAll(".exhead").forEach(b => b.onclick = () => {
     document.getElementById("exb-" + b.dataset.exkey).classList.toggle("open");
   });
+  // Delete a workout (buttons sit inside the tappable entry, so stop the tap toggling it)
+  view.querySelectorAll("[data-hdel]").forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    const s = sorted[+b.dataset.hdel]; histDeleteKey = s.date + "|" + s.day; renderHistory();
+  });
+  view.querySelectorAll("[data-hdelyes]").forEach(b => b.onclick = (e) => {
+    e.stopPropagation(); deleteWorkout(sorted[+b.dataset.hdelyes]);
+  });
+  view.querySelectorAll("[data-hdelno]").forEach(b => b.onclick = (e) => {
+    e.stopPropagation(); histDeleteKey = null; renderHistory();
+  });
   document.getElementById("exportBtn").onclick = exportCSV;
   document.getElementById("resetBtn").onclick = armReset;
 }
 
+// Remove one workout locally, then re-sync the log so the sheet drops it too
+// (the sheet's Log is rewritten from the app on every sync).
+async function deleteWorkout(target) {
+  data.sessions = data.sessions.filter(s => !(s.date === target.date && s.day === target.day));
+  histDeleteKey = null;
+  await persist();
+  syncToSheet();
+  if (currentDay === target.day && !draftDirty) buildDraft(currentDay);   // refresh "last time" prefill
+  render();
+}
+
 function buildCSV() {
-  const rows = [["date","day","exercise","set","weight_kg","reps_or_sec"]];
-  data.sessions.forEach(s => {
-    const dp = plan[s.day];
-    if (!dp) return;
-    dp.ex.forEach(ex => {
-      const sets = s.ex[ex.id]; if (!sets) return;
-      sets.forEach((x, i) => rows.push([s.date, s.day, ex.name, i+1, ex.type==="kg"?(x.w||""):"BW", x.r||""]));
-    });
-  });
+  const rows = [["date","day","exercise","set","weight_kg","reps_or_sec"]].concat(sessionRows());
   return rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
 }
 
