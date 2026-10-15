@@ -245,7 +245,8 @@
   .td-bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .3s; }
   .td-bar.over span { background: var(--over); }
   .td-pv .over, .td-pv b.over { color: var(--over-ink); font-weight: 700; }
-  .td-prow.sugarrow { margin-top: 12px; }
+  .td-prow.nrow { margin-top: 9px; }
+  .card.protcard h2 { font-size: 14px; }
   .chartgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
   .chartgrid .card { margin-bottom: 0; padding: 13px 13px 10px; }
   .chartgrid .card h2 { font-size: 13px; }
@@ -258,6 +259,57 @@
   .weighbtn { border: none; background: var(--accent); color: #fff; border-radius: 11px; padding: 12px 20px; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 12px rgba(14,158,144,.25); }
   .weighbtn:active { transform: translateY(1px); }
   .stat.goaltap { cursor: pointer; position: relative; }
+  .tap { cursor: pointer; }
+  .stat.tap:active, .card.tap:active { transform: scale(.99); }
+  /* Nutrition + Targets screens hide the app title; they have their own */
+  body.nut header { display: none; }
+  .nu-top { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px 9px; }
+  .nu-top h1 { margin: 0; color: var(--ink); cursor: default; font-size: 22px; }
+  .nu-right { display: flex; gap: 12px; align-items: center; }
+  .nu-back { border: none; background: transparent; font-family: var(--display); font-weight: 600; font-size: 13.5px; color: var(--accent-ink); cursor: pointer; padding: 6px 0; }
+  .nu-tbtn { border: 1.5px solid rgba(14,158,144,.35); background: #fff; border-radius: 10px; padding: 6px 11px; font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--accent-ink); cursor: pointer; }
+  .nu-week { display: flex; align-items: center; justify-content: space-between; background: var(--card); border-radius: 14px; padding: 6px 8px; box-shadow: var(--shadow); margin-bottom: 9px; }
+  .nu-arr { border: none; background: transparent; font-family: var(--display); font-weight: 700; font-size: 20px; color: var(--ink-soft); width: 36px; height: 34px; cursor: pointer; }
+  .nu-arr:disabled { color: var(--line); cursor: default; }
+  .nu-mid { text-align: center; }
+  .nu-range { font-family: var(--display); font-weight: 700; font-size: 15px; }
+  .nu-sub { font-family: var(--mono); font-size: 10px; color: var(--ink-faint); letter-spacing: .06em; text-transform: uppercase; margin-top: 1px; }
+  .nu-cards { touch-action: pan-y; }
+  .nu-cards.slide-r { animation: nuSlideR .22s ease-out; }
+  .nu-cards.slide-l { animation: nuSlideL .22s ease-out; }
+  @keyframes nuSlideR { from { transform: translateX(-26px); opacity: .35; } to { transform: none; opacity: 1; } }
+  @keyframes nuSlideL { from { transform: translateX(26px); opacity: .35; } to { transform: none; opacity: 1; } }
+  .nu-card { padding: 9px 13px 5px; margin-bottom: 8px; }
+  .nu-card.focus { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+  .nu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .nu-head h2 { margin: 0; font-size: 14px; }
+  .nu-note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 1px; }
+  .nu-note b { color: var(--ink); }
+  .nu-note .o { color: var(--over-ink); font-weight: 700; }
+  .nu-avg { text-align: right; line-height: 1.1; flex-shrink: 0; }
+  .nu-an { font-family: var(--display); font-weight: 700; font-size: 19px; letter-spacing: -.01em; }
+  .nu-an small { font-family: var(--body); font-weight: 600; font-size: 11px; color: var(--ink-soft); margin-left: 2px; }
+  .nu-an.o { color: var(--over-ink); }
+  .nu-al { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); }
+  .nu-val { font-family: var(--mono); font-size: 9px; font-weight: 700; stroke: #fff; stroke-width: 3px; paint-order: stroke; }
+  .nu-axis { font-family: var(--mono); font-size: 8.5px; fill: var(--ink-faint); }
+  .nu-axis.today { fill: var(--ink); font-weight: 700; }
+  .nu-hint { text-align: center; font-size: 12px; color: var(--accent-ink); font-weight: 600; min-height: 16px; margin: 2px 0 6px; }
+  /* Targets screen */
+  .tg-intro { font-size: 12px; color: var(--ink-soft); margin: 0 2px 12px; }
+  .tg-row { background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 9px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+  .tg-l { flex: 1; }
+  .tg-n { font-family: var(--display); font-weight: 700; font-size: 15px; }
+  .tg-k { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+  .tg-k.goal { color: var(--accent-ink); } .tg-k.lim { color: var(--over-ink); }
+  .tg-in { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; background: #FBFBFC; overflow: hidden; }
+  .tg-in:focus-within { border-color: var(--accent); background: #fff; }
+  .tg-in input { width: 84px; border: none; background: transparent; outline: none; font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--ink); text-align: right; padding: 9px 4px 9px 10px; }
+  .tg-in .u { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); padding: 0 10px 0 2px; }
+  .tg-save { width: 100%; border: none; background: var(--accent); color: #fff; border-radius: 13px; padding: 14px; font-family: var(--display); font-weight: 700; font-size: 15px; box-shadow: 0 6px 16px rgba(14,158,144,.28); margin-top: 6px; cursor: pointer; }
+  .tg-reset { width: 100%; border: none; background: transparent; font-family: var(--display); font-weight: 600; font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; padding: 6px; cursor: pointer; }
+  .tg-hint { text-align: center; font-size: 12px; color: var(--over-ink); min-height: 16px; margin-top: 6px; }
+  .tg-note { font-size: 11px; color: var(--ink-faint); margin: 8px 4px 0; line-height: 1.45; text-align: center; }
   .stat.goaltap:active { background: #FBFBFC; }
   .stat.goaledit { grid-column: 1 / -1; }
   .goalinput { width: 100%; margin-top: 7px; border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); background: #fff; outline: none; }
@@ -301,7 +353,7 @@
   .me-delno { border:1.5px solid var(--line); background:var(--card); color:var(--ink-soft); border-radius:9px; padding:8px 14px; font-family:var(--display); font-weight:600; font-size:12.5px; cursor:pointer; }
   .me-label { font-family:var(--display); font-weight:700; font-size:14.5px; }
   .me-time { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); white-space:nowrap; }
-  .me-macros { display:flex; gap:16px; margin-top:7px; }
+  .me-macros { display:flex; flex-wrap:wrap; column-gap:14px; row-gap:2px; margin-top:7px; }
   .me-mac { font-size:12px; color:var(--ink-soft); }
   .me-mac b { font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:700; }
   .mealbusy { display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 16px; margin-bottom:14px; background:var(--card); border-radius:16px; box-shadow:var(--shadow); }
@@ -330,9 +382,10 @@
   .oilchip.on { border-color:var(--accent); background:var(--up-bg); color:var(--accent-ink); }
   .mealentry.tap { cursor:pointer; }
   .me-break { margin-top:10px; border-top:1px solid var(--line); padding-top:6px; }
-  .mb-row { display:flex; justify-content:space-between; gap:10px; padding:4px 0; font-size:12.5px; }
+  .mb-row { display:flex; flex-direction:column; gap:1px; padding:5px 0; font-size:12.5px; }
   .mb-name { color:var(--ink-soft); }
-  .mb-val { font-family:var(--mono); font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .mb-val { font-family:var(--mono); font-size:11px; font-weight:700; color:var(--ink); }
+  .mb-fig { white-space:nowrap; }
   .mb-none { font-size:12px; color:var(--ink-faint); padding:4px 0; }
   .me-edit { width:100%; margin-top:8px; border:1.5px solid rgba(14,158,144,.35); background:transparent; border-radius:10px; padding:9px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
 
@@ -585,6 +638,8 @@ function bootFromSheet() {
     }
     applyLogAndPlan(payload);
     if (Array.isArray(payload.meals)) { meals = mapMealRows(payload.meals); cacheMeals(); }
+    applyDaily(payload.daily);
+    if (payload.targets && Object.keys(payload.targets).length) applyTargets(payload.targets);
     if (Array.isArray(payload.weights)) applyWeightRows(payload.weights);
     applyGoal(payload.goal);
     applyExercises(payload.exercises);
@@ -785,8 +840,9 @@ const savebar = document.getElementById("savebar");
 function render() {
   // Switch the page into the right layout BEFORE drawing, so the home screen
   // measures its real space when it sizes the calorie chart
-  const isHome = !["log", "history", "meals", "weight", "edit"].includes(currentTab);
+  const isHome = !["log", "history", "meals", "weight", "edit", "nutrition", "targets"].includes(currentTab);
   document.body.classList.toggle("home", isHome);
+  document.body.classList.toggle("nut", currentTab === "nutrition" || currentTab === "targets");
   document.body.classList.toggle("logbar", currentTab === "log" && logPicked);
   if (currentTab === "home") renderHome();
   else if (currentTab === "log") renderLog();
@@ -794,6 +850,8 @@ function render() {
   else if (currentTab === "meals") renderMeals();
   else if (currentTab === "weight") renderWeight();
   else if (currentTab === "edit") renderEdit();
+  else if (currentTab === "nutrition") renderNutrition();
+  else if (currentTab === "targets") renderTargets();
   else renderHome();
   const showBar = currentTab === "log" && logPicked;   // renderLog may have reset logPicked
   savebar.style.display = showBar ? "block" : "none";
@@ -960,8 +1018,30 @@ function exerciseProgressHtml() {
 }
 
 // ---------- Home: Today card (next workout + protein) ----------
-const PROTEIN_TARGET = 135;   // g per day
-const SUGAR_LIMIT = 25;       // g added sugar per day — stay under
+// Daily nutrition targets — edited on the Targets screen, saved to the sheet.
+// Calories, added sugar and sat fat are limits (stay under); protein is a goal (reach it).
+const DEFAULT_TARGETS = { kcal: 2000, protein: 135, sugar: 25, satfat: 22 };
+const TARGETS_KEY = "ulp-targets-v1";
+let KCAL_TARGET = 2000, PROTEIN_TARGET = 135, SUGAR_LIMIT = 25, SATFAT_LIMIT = 22;
+function currentTargets() { return { kcal: KCAL_TARGET, protein: PROTEIN_TARGET, sugar: SUGAR_LIMIT, satfat: SATFAT_LIMIT }; }
+function applyTargets(t) {
+  if (!t || typeof t !== "object") return;
+  const v = k => (+t[k] > 0 ? +t[k] : null);
+  if (v("kcal")) KCAL_TARGET = v("kcal");
+  if (v("protein")) PROTEIN_TARGET = v("protein");
+  if (v("sugar")) SUGAR_LIMIT = v("sugar");
+  if (v("satfat")) SATFAT_LIMIT = v("satfat");
+  try { localStorage.setItem(TARGETS_KEY, JSON.stringify(currentTargets())); } catch (e) {}
+}
+function loadTargetsCache() { try { const v = localStorage.getItem(TARGETS_KEY); if (v) applyTargets(JSON.parse(v)); } catch (e) {} }
+function pushTargetsToSheet() {
+  if (!SHEET_SYNC_URL) return;
+  try {
+    fetch(SHEET_SYNC_URL, { method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "saveTargets", token: APP_TOKEN, targets: currentTargets() }) });
+  } catch (e) { /* offline — local copy is still saved */ }
+}
 
 function lastDoneDate(day) {
   let d = "";
@@ -1012,26 +1092,27 @@ function todayCardHtml(today) {
   return `<div class="card today">${workout}</div>`;
 }
 
-// Protein + added sugar today: one card, sitting just above the calorie chart
+// Protein, added sugar and saturated fat today: one card above the calorie chart.
+// Protein is a goal to reach; sugar and sat fat are limits (teal under, red once over).
+function limitRow(label, value, limit) {
+  const pct = Math.min(100, Math.round(value / limit * 100));
+  const over = value > limit;
+  return `<div class="td-prow nrow"><h2>${label}</h2>
+      <span class="td-pv"><b${over ? ' class="over"' : ""}>${value}</b> / ${limit} g \u00b7 ${over ? `<span class="over">${value - limit} g over</span>` : (limit - value) + " g left"}</span></div>
+    <div class="td-bar${over ? " over" : ""}"><span style="width:${pct}%"></span></div>`;
+}
 function proteinCardHtml(today) {
   const todays = meals.filter(m => m.date === today);
-  const prot = Math.round(todays.reduce((a, m) => a + (+m.protein || 0), 0));
+  const sum = f => Math.round(todays.reduce((a, m) => a + (+m[f] || 0), 0));
+  const prot = sum("protein");
   const pct = Math.min(100, Math.round(prot / PROTEIN_TARGET * 100));
   const left = PROTEIN_TARGET - prot;
-
-  // Added sugar is a limit, not a goal: teal while under, red once over
-  const sugar = Math.round(todays.reduce((a, m) => a + (+m.sugar || 0), 0));
-  const sPct = Math.min(100, Math.round(sugar / SUGAR_LIMIT * 100));
-  const sLeft = SUGAR_LIMIT - sugar;
-  const sOver = sugar > SUGAR_LIMIT;
-
-  return `<div class="card protcard">
-    <div class="td-prow"><h2>Protein today</h2>
-      <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g · ${left > 0 ? left + " g to go" : `<span class="done">✓ target hit</span>`}</span></div>
+  return `<div class="card protcard tap" data-nut="protein">
+    <div class="td-prow"><h2>Protein</h2>
+      <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g \u00b7 ${left > 0 ? left + " g to go" : `<span class="done">\u2713 target hit</span>`}</span></div>
     <div class="td-bar"><span style="width:${pct}%"></span></div>
-    <div class="td-prow sugarrow"><h2>Added sugar</h2>
-      <span class="td-pv"><b${sOver ? ' class="over"' : ""}>${sugar}</b> / ${SUGAR_LIMIT} g · ${sOver ? `<span class="over">${sugar - SUGAR_LIMIT} g over</span>` : sLeft + " g left"}</span></div>
-    <div class="td-bar${sOver ? " over" : ""}"><span style="width:${sPct}%"></span></div>
+    ${limitRow("Added sugar", sum("sugar"), SUGAR_LIMIT)}
+    ${limitRow("Saturated fat", sum("satfat"), SATFAT_LIMIT)}
   </div>`;
 }
 
@@ -1050,7 +1131,7 @@ function renderHome() {
     <div class="stat"><div class="lbl">Current weight</div><div class="val">${curW != null ? curW : "\u2014"}<small> kg</small></div></div>
     <div class="stat"><div class="lbl">Last 7 days</div><div class="val">${week}</div></div>
     <div class="stat"><div class="lbl">Last trained</div><div class="val" style="font-size:12.5px">${lastTxt}</div></div>
-    <div class="stat"><div class="lbl">Calories today</div><div class="val">${Math.round(kcalToday) || 0}<small> /2000</small></div></div>
+    <div class="stat tap" data-nut="kcal"><div class="lbl">Calories today</div><div class="val">${Math.round(kcalToday) || 0}<small> /${KCAL_TARGET}</small></div></div>
   </div>`;
 
   html += todayCardHtml(today);
@@ -1076,8 +1157,8 @@ function renderHome() {
   }
   _calPts = calPts.some(p => p.value > 0) ? calPts : [];
   html += proteinCardHtml(today);
-  html += `<div class="card" id="calCard"><h2>Calories</h2>
-    <div class="calbody">${barChart(_calPts, { target: 2000, height: CAL_MAX_H, empty: "No meals logged in the last 7 days." })}</div></div>`;
+  html += `<div class="card tap" id="calCard" data-nut="kcal"><h2>Calories</h2>
+    <div class="calbody">${barChart(_calPts, { target: KCAL_TARGET, height: CAL_MAX_H, empty: "No meals logged in the last 7 days." })}</div></div>`;
 
   // Buttons in two rows (Log + Meals, then History / Routines / Weight);
   // the calorie chart shrinks to make room so nothing else changes size
@@ -1095,6 +1176,7 @@ function renderHome() {
 
   view.innerHTML = html;
   view.querySelectorAll(".navtile").forEach(b => b.onclick = () => goTab(b.dataset.go));
+  view.querySelectorAll("[data-nut]").forEach(el => el.onclick = () => openNutrition(el.dataset.nut));
   const tdGo = document.getElementById("tdGo");
   if (tdGo) tdGo.onclick = () => startWorkout(tdGo.dataset.day);
   fitHome();
@@ -1129,7 +1211,216 @@ function fitHome() {
     h = Math.min(CAL_GROW_MAX_H, CAL_MAX_H + Math.floor((slack - 2) * 320 / wpx));
   }
   card.querySelector(".calbody").innerHTML =
-    barChart(_calPts, { target: 2000, height: h, empty: "No meals logged in the last 7 days." });
+    barChart(_calPts, { target: KCAL_TARGET, height: h, empty: "No meals logged in the last 7 days." });
+}
+
+// ---------- Daily nutrition totals (all history, for the Nutrition screen) ----------
+// The sheet sends per-day totals for every day ever logged ("daily"); the app's own
+// meal list (last 60 meals) overrides the days it fully covers, so a meal added or
+// deleted on this phone shows up straight away.
+const DAILY_KEY = "ulp-daily-v1";
+let dailyServer = [];   // [[date, kcal, protein, sugar|"", satfat|""], ...]
+function applyDaily(rows) {
+  if (!Array.isArray(rows)) return;
+  dailyServer = rows;
+  try { localStorage.setItem(DAILY_KEY, JSON.stringify(rows)); } catch (e) {}
+}
+function loadDailyCache() { try { const v = localStorage.getItem(DAILY_KEY); if (v) dailyServer = JSON.parse(v) || []; } catch (e) {} }
+function dayTotals() {
+  const num = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+  const out = {};
+  const local = {};
+  meals.forEach(m => {
+    if (!m.date) return;
+    const d = local[m.date] || (local[m.date] = { kcal: 0, protein: 0, sugar: null, satfat: null });
+    d.kcal += +m.kcal || 0; d.protein += +m.protein || 0;
+    if (m.sugar != null) d.sugar = (d.sugar || 0) + m.sugar;
+    if (m.satfat != null) d.satfat = (d.satfat || 0) + m.satfat;
+  });
+  const localDates = Object.keys(local).sort();
+  const oldest = localDates.length ? localDates[0] : "";
+  // The oldest day in a full 60-meal list may be cut off part-way, so the sheet's total wins there
+  const partialOldest = meals.length >= 60;
+  dailyServer.forEach(r => {
+    if (!r || !r[0]) return;
+    const usable = !oldest || r[0] < oldest || (r[0] === oldest && partialOldest);
+    if (usable) out[r[0]] = { kcal: num(r[1]) || 0, protein: num(r[2]) || 0, sugar: num(r[3]), satfat: num(r[4]) };
+  });
+  localDates.forEach(d => { if (!out[d]) out[d] = local[d]; });
+  Object.values(out).forEach(v => { v.kcal = Math.round(v.kcal); v.protein = Math.round(v.protein);
+    if (v.sugar != null) v.sugar = Math.round(v.sugar); if (v.satfat != null) v.satfat = Math.round(v.satfat); });
+  return out;
+}
+
+// ---------- Nutrition screen ----------
+let nutWeek = 0;        // 0 = this week, 1 = last week, ...
+let nutFocus = null;    // "kcal" | "protein" — which chart was tapped to open the screen
+let nutSlide = "";      // animation direction after a swipe
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function isoOf(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function weekDates(offset) {             // Monday → Sunday
+  const d = new Date(isoToday() + "T00:00:00");
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * offset);
+  const out = [];
+  for (let i = 0; i < 7; i++) { out.push(isoOf(d)); d.setDate(d.getDate() + 1); }
+  return out;
+}
+function maxNutWeek(totals) {
+  const dates = Object.keys(totals).sort();
+  if (!dates.length) return 0;
+  const first = new Date(weekDates(0)[0] + "T00:00:00");
+  const e = new Date(dates[0] + "T00:00:00"); e.setDate(e.getDate() - ((e.getDay() + 6) % 7));
+  return Math.max(0, Math.round((first - e) / (7 * 86400000)));
+}
+function openNutrition(focus) { nutFocus = focus || null; nutWeek = 0; nutSlide = ""; goTab("nutrition"); window.scrollTo(0, 0); }
+function rangeLabel(dates) {
+  const a = new Date(dates[0] + "T00:00:00"), b = new Date(dates[6] + "T00:00:00");
+  return a.getMonth() === b.getMonth()
+    ? `${a.getDate()} – ${b.getDate()} ${MONTHS[b.getMonth()]}`
+    : `${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;
+}
+// One week's bars. kind "limit": red over target, today teal, else grey.
+// kind "goal": teal when the target is hit, light teal for today, else grey.
+// Missing days (nothing logged / not yet) show as an empty slot.
+function nutChart(vals, dates, todayIdx, target, kind) {
+  const W = 320, H = 86, pL = 6, pR = 6, pT = 14, pB = 24, n = 7, slot = (W - pL - pR) / n, bw = Math.min(slot * 0.58, 26), base = H - pB;
+  const known = vals.filter(v => v != null);
+  const max = Math.max(...known, target) * 1.12 || 1;
+  const y = v => pT + (1 - v / max) * (H - pT - pB);
+  let s = `<line x1="${pL}" y1="${base}" x2="${W - pR}" y2="${base}" stroke="var(--line)"/>`;
+  vals.forEach((v, i) => {
+    const cx = pL + slot * (i + 0.5);
+    if (v != null) {
+      const top = y(v), h = Math.max(base - top, v > 0 ? 2 : 0);
+      let fill = "#DDE0E4";
+      if (kind === "goal") { if (v >= target) fill = "var(--accent)"; else if (i === todayIdx) fill = "#9FD9D2"; }
+      else { if (v > target) fill = "var(--over)"; else if (i === todayIdx) fill = "var(--accent)"; }
+      s += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${fill}"/>`;
+      const col = (kind !== "goal" && v > target) ? "var(--over-ink)" : "var(--ink-soft)";
+      s += `<text class="nu-val" x="${cx.toFixed(1)}" y="${(base - h - 4).toFixed(1)}" text-anchor="middle" fill="${col}">${v.toLocaleString()}</text>`;
+    } else {
+      s += `<rect x="${(cx - bw / 2).toFixed(1)}" y="${base - 3}" width="${bw.toFixed(1)}" height="3" rx="1.5" fill="#ECEEF1"/>`;
+    }
+    const dd = new Date(dates[i] + "T00:00:00").getDate();
+    s += `<text class="nu-axis${i === todayIdx ? " today" : ""}" x="${cx.toFixed(1)}" y="${H - 13}" text-anchor="middle">${DOW[i]}</text>`;
+    s += `<text class="nu-axis" x="${cx.toFixed(1)}" y="${H - 3}" text-anchor="middle">${dd}</text>`;
+  });
+  if (known.length) {
+    const ay = y(known.reduce((a, b) => a + b, 0) / known.length);
+    s += `<line x1="${pL}" y1="${ay.toFixed(1)}" x2="${W - pR}" y2="${ay.toFixed(1)}" stroke="var(--accent)" stroke-width="1" stroke-dasharray="1 3" stroke-linecap="round" opacity=".55"/>`;
+    s += `<text x="${W - pR}" y="${(ay - 3).toFixed(1)}" text-anchor="end" style="font:7.5px var(--mono);fill:var(--accent);opacity:.75;stroke:#fff;stroke-width:3px;paint-order:stroke">avg</text>`;
+  }
+  const ty = y(target);
+  s += `<line x1="${pL}" y1="${ty.toFixed(1)}" x2="${W - pR}" y2="${ty.toFixed(1)}" stroke="var(--ink-soft)" stroke-dasharray="3 3" opacity=".55"/>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
+}
+function nutCard(key, title, vals, dates, todayIdx, target, kind, unit) {
+  const known = vals.filter(v => v != null);
+  const avg = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : null;
+  const tLabel = (kind === "goal" ? "Target " : (key === "kcal" ? "Target " : "Limit ")) + `<b>${target.toLocaleString()}${key === "kcal" ? "" : " g"}</b>`;
+  let note = "";
+  if (known.length) {
+    if (kind === "goal") note = ` · hit target <b>${known.filter(v => v >= target).length}</b> of ${known.length} days`;
+    else { const over = known.filter(v => v > target).length; note = " · " + (over ? `<span class="o">${over} day${over > 1 ? "s" : ""} over</span>` : "no days over"); }
+  }
+  const avgOver = avg != null && kind !== "goal" && avg > target;
+  return `<div class="card nu-card${nutFocus === key ? " focus" : ""}">
+    <div class="nu-head"><div><h2>${title}</h2><div class="nu-note">${tLabel}${note}</div></div>
+      <div class="nu-avg"><div class="nu-an${avgOver ? " o" : ""}">${avg == null ? "—" : avg.toLocaleString()}<small>${unit}</small></div><div class="nu-al">Weekly avg</div></div></div>
+    ${nutChart(vals, dates, todayIdx, target, kind)}
+  </div>`;
+}
+let nutMsg = "";
+function renderNutrition() {
+  const totals = dayTotals();
+  const maxW = maxNutWeek(totals);
+  if (nutWeek > maxW) nutWeek = maxW;
+  const dates = weekDates(nutWeek);
+  const today = isoToday();
+  const todayIdx = dates.indexOf(today);
+  const pick = f => dates.map(d => (d > today || !totals[d]) ? null : totals[d][f]);
+  const sub = (nutWeek === 0 ? "This week" : nutWeek === 1 ? "Last week" : nutWeek + " weeks ago") + (nutWeek < maxW ? " · swipe for earlier" : "");
+  view.innerHTML = `
+    <div class="nu-top"><h1>Nutrition</h1>
+      <div class="nu-right"><button class="nu-tbtn" id="nuTargets">⚙ Targets</button><button class="nu-back" id="nuHome">← Home</button></div></div>
+    <div class="nu-week">
+      <button class="nu-arr" id="nuPrev" aria-label="Previous week" ${nutWeek >= maxW ? "disabled" : ""}>‹</button>
+      <div class="nu-mid"><div class="nu-range">${rangeLabel(dates)}</div><div class="nu-sub">${sub}</div></div>
+      <button class="nu-arr" id="nuNext" aria-label="Next week" ${nutWeek <= 0 ? "disabled" : ""}>›</button>
+    </div>
+    ${nutMsg ? `<div class="nu-hint">${nutMsg}</div>` : ""}
+    <div class="nu-cards${nutSlide ? " slide-" + nutSlide : ""}" id="nuCards">
+      ${nutCard("kcal", "Calories", pick("kcal"), dates, todayIdx, KCAL_TARGET, "limit", "kcal")}
+      ${nutCard("protein", "Protein", pick("protein"), dates, todayIdx, PROTEIN_TARGET, "goal", "g")}
+      ${nutCard("sugar", "Added sugar", pick("sugar"), dates, todayIdx, SUGAR_LIMIT, "limit", "g")}
+      ${nutCard("satfat", "Saturated fat", pick("satfat"), dates, todayIdx, SATFAT_LIMIT, "limit", "g")}
+    </div>`;
+  nutSlide = ""; nutMsg = "";
+  const go = (delta) => {
+    const next = nutWeek + delta;
+    if (next < 0 || next > maxW) return;
+    nutWeek = next; nutSlide = delta > 0 ? "r" : "l"; render();
+  };
+  document.getElementById("nuPrev").onclick = () => go(1);
+  document.getElementById("nuNext").onclick = () => go(-1);
+  document.getElementById("nuHome").onclick = () => goTab("home");
+  document.getElementById("nuTargets").onclick = () => { targetDraft = null; goTab("targets"); };
+  // Swipe right = earlier week, swipe left = later week
+  const area = document.getElementById("nuCards");
+  let sx = null, sy = null;
+  area.addEventListener("touchstart", e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
+  area.addEventListener("touchend", e => {
+    if (sx == null) return;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    sx = sy = null;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx > 0 ? 1 : -1);
+  });
+}
+
+// ---------- Targets screen ----------
+let targetDraft = null;   // unsaved edits, kept if the screen redraws while editing
+const TARGET_ROWS = [
+  ["kcal", "Calories", "lim", "Limit · stay under", "kcal"],
+  ["protein", "Protein", "goal", "Goal · aim to reach", "g"],
+  ["sugar", "Added sugar", "lim", "Limit · stay under", "g"],
+  ["satfat", "Saturated fat", "lim", "Limit · stay under", "g"],
+];
+function renderTargets() {
+  const t = targetDraft || currentTargets();
+  view.innerHTML = `
+    <div class="nu-top"><h1>Targets</h1><button class="nu-back" id="tgBack">← Nutrition</button></div>
+    <div class="tg-intro">Daily targets used on the Home screen and the Nutrition charts.</div>
+    ${TARGET_ROWS.map(r => `
+      <div class="tg-row"><div class="tg-l"><div class="tg-n">${r[1]}</div><div class="tg-k ${r[2]}">${r[3]}</div></div>
+        <label class="tg-in"><input inputmode="decimal" data-tk="${r[0]}" value="${escAttr(String(t[r[0]]))}"><span class="u">${r[4]}</span></label></div>`).join("")}
+    <button class="tg-save" id="tgSave">Save targets</button>
+    <div class="tg-hint" id="tgHint"></div>
+    <button class="tg-reset" id="tgReset">Reset to defaults</button>
+    <div class="tg-note">Saved to your Google Sheet, so they're the same on every device.</div>`;
+  view.querySelectorAll("input[data-tk]").forEach(inp => inp.oninput = () => {
+    targetDraft = targetDraft || currentTargets();
+    targetDraft[inp.dataset.tk] = inp.value;
+  });
+  document.getElementById("tgBack").onclick = () => { targetDraft = null; goTab("nutrition"); };
+  document.getElementById("tgReset").onclick = () => {
+    targetDraft = Object.assign({}, DEFAULT_TARGETS);
+    renderTargets();
+    document.getElementById("tgHint").textContent = "Defaults filled in — tap Save to apply.";
+  };
+  document.getElementById("tgSave").onclick = () => {
+    const vals = {};
+    for (const r of TARGET_ROWS) {
+      const v = parseFloat(String(view.querySelector(`input[data-tk="${r[0]}"]`).value).replace(/,/g, ""));
+      if (!(v > 0)) { document.getElementById("tgHint").textContent = `Enter a number for ${r[1].toLowerCase()}.`; return; }
+      vals[r[0]] = Math.round(v * 10) / 10;
+    }
+    applyTargets(vals);
+    pushTargetsToSheet();
+    targetDraft = null;
+    nutMsg = "Targets saved ✓";
+    goTab("nutrition");
+  };
 }
 
 // Log tab, step 1: just the routines. Exercises appear once one is tapped.
@@ -1645,8 +1936,9 @@ function mapMealRows(rows) {
     let items = null;
     try { if (r[5]) items = JSON.parse(r[5]); } catch (e) { items = null; }
     // sugar = added sugar in g; null for meals estimated before sugar was tracked
-    const sugar = (r[6] === "" || r[6] == null || isNaN(+r[6])) ? null : +r[6];
-    return { ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4], items, sugar };
+    // sugar / satfat in g; null for meals estimated before they were tracked
+    const num = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+    return { ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4], items, sugar: num(r[6]), satfat: num(r[7]) };
   }).sort((a, b) => b.ts - a.ts);
 }
 function resetPendingMeal() {
@@ -1710,7 +2002,7 @@ function pollForMeal(ts, tries, cb) {
       const found = payload.meals.find(r => +r[0] === ts);
       if (found) {
         meals = mapMealRows(payload.meals);
-        cacheMeals(); cb(null, found); return;
+        cacheMeals(); applyDaily(payload.daily); cb(null, found); return;
       }
     }
     if (tries <= 0) { cb(new Error("timeout")); return; }
@@ -1724,12 +2016,13 @@ function fetchMeals(cb) {
     if (!err && payload && payload.meals) {
       meals = mapMealRows(payload.meals);
       cacheMeals();
+      applyDaily(payload.daily);
     }
     if (cb) cb();
   });
 }
 function refreshMeals() { fetchMeals(() => {
-  if (currentTab === "home") renderIfIdle();
+  if (currentTab === "home" || currentTab === "nutrition") renderIfIdle();
   else if (currentTab === "meals" && mealStage === "idle") renderIfIdle();
 }); }
 
@@ -1823,6 +2116,14 @@ function pushMealDelete(ts) {
   } catch (e) { /* offline — local copy is already updated */ }
 }
 
+// One item's figures, each kept on one line ("9.6 g sat fat" never splits)
+function itemFigures(it) {
+  const parts = [it.kcal + " kcal", it.protein_g + " g protein"];
+  if (+it.added_sugar_g > 0) parts.push(it.added_sugar_g + " g sugar");
+  if (+it.sat_fat_g > 0) parts.push(it.sat_fat_g + " g sat fat");
+  return parts.map(x => `<span class="mb-fig">${x}</span>`).join(" \u00b7 ");
+}
+
 function mealConfirmHtml() {
   let rows = "";
   pendingItems.forEach((it, i) => {
@@ -1859,8 +2160,8 @@ function renderMeals() {
   const prot = todays.reduce((a, m) => a + (+m.protein || 0), 0);
 
   let html = `<div class="stats">
-    <div class="stat"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ 2000 kcal</small></div></div>
-    <div class="stat"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ ${PROTEIN_TARGET} g</small></div></div>
+    <div class="stat tap" data-nut="kcal"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ ${KCAL_TARGET} kcal</small></div></div>
+    <div class="stat tap" data-nut="protein"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ ${PROTEIN_TARGET} g</small></div></div>
   </div>`;
 
   if (mealStage === "confirming") {
@@ -1904,14 +2205,14 @@ function renderMeals() {
         let brk = "";
         if (+m.ts === +mealOpenTs) {
           brk = `<div class="me-break">` + (m.items && m.items.length
-            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${it.kcal} kcal · ${it.protein_g} g${+it.added_sugar_g > 0 ? ` · <span class="mb-sugar">${it.added_sugar_g} g sugar</span>` : ""}</span></div>`).join("")
+            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${itemFigures(it)}</span></div>`).join("")
             : `<div class="mb-none">No item breakdown — this meal was logged before itemised estimates.</div>`)
             + `<button class="me-edit" data-mealedit="${m.ts}">Edit &amp; re-estimate</button></div>`;
         }
         html += `<div class="mealentry tap" data-mealopen="${m.ts}">
           <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span>
             <span class="me-right"><span class="me-time">${tt}</span><button class="me-del" data-mealdel="${m.ts}" aria-label="Delete meal">✕</button></span></div>
-          <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span>${m.sugar != null ? `<span class="me-mac"><b>${Math.round(m.sugar)}</b> g added sugar</span>` : ""}</div>
+          <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span>${m.sugar != null ? `<span class="me-mac"><b>${Math.round(m.sugar)}</b> g sugar</span>` : ""}${m.satfat != null ? `<span class="me-mac"><b>${Math.round(m.satfat)}</b> g sat fat</span>` : ""}</div>
           ${brk}
         </div>`;
       }
@@ -1921,6 +2222,7 @@ function renderMeals() {
   view.innerHTML = html;
 
   // Delete controls on logged meals (active in any stage)
+  view.querySelectorAll(".stat[data-nut]").forEach(el => el.onclick = () => openNutrition(el.dataset.nut));
   view.querySelectorAll("[data-mealdel]").forEach(b => b.onclick = (e) => { e.stopPropagation(); mealDeleteTs = +b.dataset.mealdel; renderMeals(); });
   view.querySelectorAll("[data-mealdelyes]").forEach(b => b.onclick = () => deleteMeal(+b.dataset.mealdelyes));
   view.querySelectorAll("[data-mealdelno]").forEach(b => b.onclick = () => { mealDeleteTs = null; renderMeals(); });
@@ -2164,6 +2466,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) chec
   loadWeightCache();
   loadGoal();
   loadExListCache();
+  loadTargetsCache();
+  loadDailyCache();
   buildDraft(currentDay);
   render();              // show cached data instantly
   bootFromSheet();       // then one request pulls everything fresh from the sheet
