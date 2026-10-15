@@ -243,6 +243,9 @@
   .navrow.three { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
   .navrow.two .nt-name, .navrow.three .nt-name { font-size: 14px; }
   .td-bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .3s; }
+  .td-bar.over span { background: var(--over); }
+  .td-pv .over, .td-pv b.over { color: var(--over-ink); font-weight: 700; }
+  .td-prow.sugarrow { margin-top: 12px; }
   .chartgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
   .chartgrid .card { margin-bottom: 0; padding: 13px 13px 10px; }
   .chartgrid .card h2 { font-size: 13px; }
@@ -958,6 +961,7 @@ function exerciseProgressHtml() {
 
 // ---------- Home: Today card (next workout + protein) ----------
 const PROTEIN_TARGET = 135;   // g per day
+const SUGAR_LIMIT = 25;       // g added sugar per day — stay under
 
 function lastDoneDate(day) {
   let d = "";
@@ -1008,15 +1012,26 @@ function todayCardHtml(today) {
   return `<div class="card today">${workout}</div>`;
 }
 
-// Protein today: its own card, sitting just above the calorie chart
+// Protein + added sugar today: one card, sitting just above the calorie chart
 function proteinCardHtml(today) {
-  const prot = Math.round(meals.filter(m => m.date === today).reduce((a, m) => a + (+m.protein || 0), 0));
+  const todays = meals.filter(m => m.date === today);
+  const prot = Math.round(todays.reduce((a, m) => a + (+m.protein || 0), 0));
   const pct = Math.min(100, Math.round(prot / PROTEIN_TARGET * 100));
   const left = PROTEIN_TARGET - prot;
+
+  // Added sugar is a limit, not a goal: teal while under, red once over
+  const sugar = Math.round(todays.reduce((a, m) => a + (+m.sugar || 0), 0));
+  const sPct = Math.min(100, Math.round(sugar / SUGAR_LIMIT * 100));
+  const sLeft = SUGAR_LIMIT - sugar;
+  const sOver = sugar > SUGAR_LIMIT;
+
   return `<div class="card protcard">
     <div class="td-prow"><h2>Protein today</h2>
       <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g · ${left > 0 ? left + " g to go" : `<span class="done">✓ target hit</span>`}</span></div>
     <div class="td-bar"><span style="width:${pct}%"></span></div>
+    <div class="td-prow sugarrow"><h2>Added sugar</h2>
+      <span class="td-pv"><b${sOver ? ' class="over"' : ""}>${sugar}</b> / ${SUGAR_LIMIT} g · ${sOver ? `<span class="over">${sugar - SUGAR_LIMIT} g over</span>` : sLeft + " g left"}</span></div>
+    <div class="td-bar${sOver ? " over" : ""}"><span style="width:${sPct}%"></span></div>
   </div>`;
 }
 
@@ -1629,7 +1644,9 @@ function mapMealRows(rows) {
   return rows.map(r => {
     let items = null;
     try { if (r[5]) items = JSON.parse(r[5]); } catch (e) { items = null; }
-    return { ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4], items };
+    // sugar = added sugar in g; null for meals estimated before sugar was tracked
+    const sugar = (r[6] === "" || r[6] == null || isNaN(+r[6])) ? null : +r[6];
+    return { ts:+r[0], date:r[1], label:r[2], kcal:r[3], protein:r[4], items, sugar };
   }).sort((a, b) => b.ts - a.ts);
 }
 function resetPendingMeal() {
@@ -1887,14 +1904,14 @@ function renderMeals() {
         let brk = "";
         if (+m.ts === +mealOpenTs) {
           brk = `<div class="me-break">` + (m.items && m.items.length
-            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${it.kcal} kcal · ${it.protein_g} g</span></div>`).join("")
+            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${it.kcal} kcal · ${it.protein_g} g${+it.added_sugar_g > 0 ? ` · <span class="mb-sugar">${it.added_sugar_g} g sugar</span>` : ""}</span></div>`).join("")
             : `<div class="mb-none">No item breakdown — this meal was logged before itemised estimates.</div>`)
             + `<button class="me-edit" data-mealedit="${m.ts}">Edit &amp; re-estimate</button></div>`;
         }
         html += `<div class="mealentry tap" data-mealopen="${m.ts}">
           <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span>
             <span class="me-right"><span class="me-time">${tt}</span><button class="me-del" data-mealdel="${m.ts}" aria-label="Delete meal">✕</button></span></div>
-          <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span></div>
+          <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span>${m.sugar != null ? `<span class="me-mac"><b>${Math.round(m.sugar)}</b> g added sugar</span>` : ""}</div>
           ${brk}
         </div>`;
       }
