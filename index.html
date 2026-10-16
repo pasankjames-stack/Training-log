@@ -55,7 +55,24 @@
   .card.protcard h2 { margin: 0; }
 
   /* ---- Header ---- */
-  header { padding: 2px 2px 10px; }
+  header { padding: 2px 2px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #hdrTargets { display: none; }
+  body.nutpage #hdrTargets { display: inline-block; }
+  /* Title icons */
+  .ic { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; flex-shrink: 0;
+    fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .td-lbl .ic { width: 11px; height: 11px; vertical-align: -1.5px; margin-right: 4px; }
+  .seclabel .ic { width: 14px; height: 14px; }
+  /* Home: Next workout (half) + Meals (half) */
+  .todayrow { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
+  .todayrow .card.today { margin-bottom: 0; padding: 11px 12px; }
+  .todayrow .td-row { gap: 8px; }
+  .todayrow .td-lbl { white-space: nowrap; margin-bottom: 2px; }
+  .todayrow .td-name { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .todayrow .td-go { padding: 10px 12px; font-size: 13px; }
+  .todayrow .navtile { display: flex; align-items: center; justify-content: center; text-align: center; border-radius: 16px; }
+  .navrow.one { grid-template-columns: 1fr; }
+  .navrow.one .nt-name { font-size: 14px; }
   .kicker {
     font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
     text-transform: uppercase; color: var(--ink-faint); font-weight: 700;
@@ -261,7 +278,7 @@
   .stat.goaltap { cursor: pointer; position: relative; }
   .tap { cursor: pointer; }
   .stat.tap:active, .card.tap:active { transform: scale(.99); }
-  /* Nutrition + Targets screens hide the app title; they have their own */
+  /* Targets screen hides the app title; it has its own. Nutrition shows the logo. */
   body.nut header { display: none; }
   .nu-top { display: flex; align-items: center; justify-content: space-between; margin: 6px 2px 9px; }
   .nu-top h1 { margin: 0; color: var(--ink); cursor: default; font-size: 22px; }
@@ -280,7 +297,6 @@
   @keyframes nuSlideR { from { transform: translateX(-26px); opacity: .35; } to { transform: none; opacity: 1; } }
   @keyframes nuSlideL { from { transform: translateX(26px); opacity: .35; } to { transform: none; opacity: 1; } }
   .nu-card { padding: 9px 13px 5px; margin-bottom: 8px; }
-  .nu-card.focus { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
   .nu-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
   .nu-head h2 { margin: 0; font-size: 14px; }
   .nu-note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 1px; }
@@ -448,6 +464,7 @@
 <div class="app">
   <header>
     <h1 id="homeTitle">Health Track</h1>
+    <button class="nu-tbtn" id="hdrTargets">⚙ Targets</button>
   </header>
 
   <div id="view"><div class="loading">Loading your log…</div></div>
@@ -842,7 +859,8 @@ function render() {
   // measures its real space when it sizes the calorie chart
   const isHome = !["log", "history", "meals", "weight", "edit", "nutrition", "targets"].includes(currentTab);
   document.body.classList.toggle("home", isHome);
-  document.body.classList.toggle("nut", currentTab === "nutrition" || currentTab === "targets");
+  document.body.classList.toggle("nut", currentTab === "targets");
+  document.body.classList.toggle("nutpage", currentTab === "nutrition");
   document.body.classList.toggle("logbar", currentTab === "log" && logPicked);
   if (currentTab === "home") renderHome();
   else if (currentTab === "log") renderLog();
@@ -870,7 +888,22 @@ function goTab(tab) {
 function wireHome() {
   const ht = document.getElementById("homeTitle");
   if (ht) ht.onclick = () => { currentTab = "home"; editingDay = null; goalEditing = false; pickingExercise = false; render(); };
+  const tb = document.getElementById("hdrTargets");
+  if (tb) tb.onclick = () => { targetDraft = null; goTab("targets"); };
 }
+
+// ---------- Title icons (inline SVG, teal line style) ----------
+const ICONS = {
+  dumbbell: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
+  flame:    '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2.2-4.8.3 1.6 1.1 2.6 2.1 3C11 8.5 11 6 12 3z"/>',
+  drumstick:'<path d="M14.5 3.5a6 6 0 0 1 6 6c0 3.3-2.7 5.5-6 5.5h-1.6l-3.2 3.2a2 2 0 1 1-2.6 2.6 2 2 0 1 1-2.6-2.6 2 2 0 1 1 2.6-2.6L10.3 12.4V10a6.4 6.4 0 0 1 4.2-6.5z"/>',
+  cube:     '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+  drop:     '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/>',
+  bars:     '<path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/>',
+  scale:    '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9.5a4.2 4.2 0 0 1 6 0M12 9.8l1.2-1.8"/>',
+  list:     '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/>'
+};
+function ic(name) { return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
 function caloriesByDay() {
   const byDay = {};
   meals.forEach(m => { if (!m.date) return; byDay[m.date] = (byDay[m.date] || 0) + (+m.kcal || 0); });
@@ -1002,7 +1035,7 @@ function exerciseProgressData() {
 function exerciseProgressHtml() {
   const prog = exerciseProgressData();
   if (!prog.length) return "";
-  let h = `<div class="seclabel">Working weight by exercise</div>`;
+  let h = `<div class="seclabel">${ic("dumbbell")}Working weight by exercise</div>`;
   prog.forEach((p, i) => {
     const latest = p.hist[p.hist.length - 1].w;
     const pts = p.hist.slice(-14).map(x => ({ label: prettyShort(x.date), value: x.w }));
@@ -1074,30 +1107,29 @@ function todayCardHtml(today) {
     const focus = plan[next.day].focus || "";
     // One line under the name: "✓ Trained today: …" or "focus · last done …"
     const lastTxt = next.last ? `last ${prettyShort(next.last)}` : "not done yet";
-    const meta = doneToday.length
-      ? `✓ Trained today: ${doneToday.map(escHtml).join(", ")}`
-      : (focus ? escHtml(focus) + " · " : "") + lastTxt;
-    workout = `<div class="td-row">
+    const meta = doneToday.length ? "✓ Trained today" : lastTxt;
+    workout = `<div class="td-lbl">${ic("dumbbell")}${inProgress ? "In progress" : "Next workout"}</div>
+    <div class="td-row">
       <div class="td-main">
-        <div class="td-lbl">${inProgress ? "In progress" : "Next workout"}</div>
         <div class="td-name">${escHtml(next.day)}</div>
         <div class="td-meta${doneToday.length ? " done" : ""}">${meta}</div>
       </div>
       <button class="td-go" id="tdGo" data-day="${escAttr(next.day)}">${inProgress ? "Continue" : "Start"}</button>
     </div>`;
   } else {
-    workout = `<div class="td-lbl">Next workout</div><div class="td-sub">Add a routine in Routines to get started.</div>`;
+    workout = `<div class="td-lbl">${ic("dumbbell")}Next workout</div><div class="td-sub">Add a routine in Routines to start.</div>`;
   }
 
-  return `<div class="card today">${workout}</div>`;
+  return `<div class="todayrow"><div class="card today">${workout}</div>
+    <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button></div>`;
 }
 
 // Protein, added sugar and saturated fat today: one card above the calorie chart.
 // Protein is a goal to reach; sugar and sat fat are limits (teal under, red once over).
-function limitRow(label, value, limit) {
+function limitRow(label, value, limit, icon) {
   const pct = Math.min(100, Math.round(value / limit * 100));
   const over = value > limit;
-  return `<div class="td-prow nrow"><h2>${label}</h2>
+  return `<div class="td-prow nrow"><h2>${ic(icon)}${label}</h2>
       <span class="td-pv"><b${over ? ' class="over"' : ""}>${value}</b> / ${limit} g \u00b7 ${over ? `<span class="over">${value - limit} g over</span>` : (limit - value) + " g left"}</span></div>
     <div class="td-bar${over ? " over" : ""}"><span style="width:${pct}%"></span></div>`;
 }
@@ -1108,11 +1140,11 @@ function proteinCardHtml(today) {
   const pct = Math.min(100, Math.round(prot / PROTEIN_TARGET * 100));
   const left = PROTEIN_TARGET - prot;
   return `<div class="card protcard tap" data-nut="protein">
-    <div class="td-prow"><h2>Protein</h2>
+    <div class="td-prow"><h2>${ic("drumstick")}Protein</h2>
       <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g \u00b7 ${left > 0 ? left + " g to go" : `<span class="done">\u2713 target hit</span>`}</span></div>
     <div class="td-bar"><span style="width:${pct}%"></span></div>
-    ${limitRow("Added sugar", sum("sugar"), SUGAR_LIMIT)}
-    ${limitRow("Saturated fat", sum("satfat"), SATFAT_LIMIT)}
+    ${limitRow("Added sugar", sum("sugar"), SUGAR_LIMIT, "cube")}
+    ${limitRow("Saturated fat", sum("satfat"), SATFAT_LIMIT, "drop")}
   </div>`;
 }
 
@@ -1140,9 +1172,9 @@ function renderHome() {
   const wPts = sortedWeights().slice(-14).map(w => ({ label: prettyShort(w.date), value: w.kg }));
   _volPts = volPts; _wPts = wPts;
   html += `<div class="chartgrid">
-    <div class="card"><h2>Volume / session</h2>
+    <div class="card"><h2>${ic("bars")}Volume / session</h2>
       <div class="volbody">${volChartHtml(SMALL_BASE_H)}</div></div>
-    <div class="card"><h2>Weight</h2>
+    <div class="card"><h2>${ic("scale")}Weight</h2>
       <div class="wbody">${weightChartHtml(SMALL_BASE_H)}</div></div>
   </div>`;
 
@@ -1157,15 +1189,14 @@ function renderHome() {
   }
   _calPts = calPts.some(p => p.value > 0) ? calPts : [];
   html += proteinCardHtml(today);
-  html += `<div class="card tap" id="calCard" data-nut="kcal"><h2>Calories</h2>
+  html += `<div class="card tap" id="calCard" data-nut="kcal"><h2>${ic("flame")}Calories</h2>
     <div class="calbody">${barChart(_calPts, { target: KCAL_TARGET, height: CAL_MAX_H, empty: "No meals logged in the last 7 days." })}</div></div>`;
 
-  // Buttons in two rows (Log + Meals, then History / Routines / Weight);
-  // the calorie chart shrinks to make room so nothing else changes size
+  // Buttons: Log on its own row, then History / Routines / Weight (Meals sits
+  // beside Next workout); the calorie chart shrinks to make room
   html += `<div class="navwrap">
-      <div class="navrow two">
+      <div class="navrow one">
         <button class="navtile" data-go="log"><span class="nt-name">Log</span></button>
-        <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button>
       </div>
       <div class="navrow three">
         <button class="navtile" data-go="history"><span class="nt-name">History</span></button>
@@ -1315,6 +1346,7 @@ function nutChart(vals, dates, todayIdx, target, kind) {
   s += `<line x1="${pL}" y1="${ty.toFixed(1)}" x2="${W - pR}" y2="${ty.toFixed(1)}" stroke="var(--ink-soft)" stroke-dasharray="3 3" opacity=".55"/>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
 }
+const NUT_ICON = { kcal: "flame", protein: "drumstick", sugar: "cube", satfat: "drop" };
 function nutCard(key, title, vals, dates, todayIdx, target, kind, unit) {
   const known = vals.filter(v => v != null);
   const avg = known.length ? Math.round(known.reduce((a, b) => a + b, 0) / known.length) : null;
@@ -1325,8 +1357,8 @@ function nutCard(key, title, vals, dates, todayIdx, target, kind, unit) {
     else { const over = known.filter(v => v > target).length; note = " · " + (over ? `<span class="o">${over} day${over > 1 ? "s" : ""} over</span>` : "no days over"); }
   }
   const avgOver = avg != null && kind !== "goal" && avg > target;
-  return `<div class="card nu-card${nutFocus === key ? " focus" : ""}">
-    <div class="nu-head"><div><h2>${title}</h2><div class="nu-note">${tLabel}${note}</div></div>
+  return `<div class="card nu-card">
+    <div class="nu-head"><div><h2>${NUT_ICON[key] ? ic(NUT_ICON[key]) : ""}${title}</h2><div class="nu-note">${tLabel}${note}</div></div>
       <div class="nu-avg"><div class="nu-an${avgOver ? " o" : ""}">${avg == null ? "—" : avg.toLocaleString()}<small>${unit}</small></div><div class="nu-al">Weekly avg</div></div></div>
     ${nutChart(vals, dates, todayIdx, target, kind)}
   </div>`;
@@ -1342,8 +1374,6 @@ function renderNutrition() {
   const pick = f => dates.map(d => (d > today || !totals[d]) ? null : totals[d][f]);
   const sub = (nutWeek === 0 ? "This week" : nutWeek === 1 ? "Last week" : nutWeek + " weeks ago") + (nutWeek < maxW ? " · swipe for earlier" : "");
   view.innerHTML = `
-    <div class="nu-top"><h1>Nutrition</h1>
-      <div class="nu-right"><button class="nu-tbtn" id="nuTargets">⚙ Targets</button><button class="nu-back" id="nuHome">← Home</button></div></div>
     <div class="nu-week">
       <button class="nu-arr" id="nuPrev" aria-label="Previous week" ${nutWeek >= maxW ? "disabled" : ""}>‹</button>
       <div class="nu-mid"><div class="nu-range">${rangeLabel(dates)}</div><div class="nu-sub">${sub}</div></div>
@@ -1364,8 +1394,6 @@ function renderNutrition() {
   };
   document.getElementById("nuPrev").onclick = () => go(1);
   document.getElementById("nuNext").onclick = () => go(-1);
-  document.getElementById("nuHome").onclick = () => goTab("home");
-  document.getElementById("nuTargets").onclick = () => { targetDraft = null; goTab("targets"); };
   // Swipe right = earlier week, swipe left = later week
   const area = document.getElementById("nuCards");
   let sx = null, sy = null;
@@ -1711,7 +1739,7 @@ function renderDashboard() {
     <div class="stat"><div class="lbl">Last trained</div><div class="val" style="font-size:18px">${lastTxt}</div></div>
   </div>`;
 
-  html += `<div class="card"><h2>Volume per session</h2>
+  html += `<div class="card"><h2>${ic("bars")}Volume per session</h2>
     <div class="csub">Total weight moved (weight × reps) each session</div>
     ${volumeChart(sessions.slice(-14))}</div>`;
 
@@ -1735,7 +1763,7 @@ function renderDashboard() {
     bodyEx += `<div class="pcard"><div class="pname">${ex.name} <span style="color:var(--ink-faint);font-weight:400">· ${day}</span></div>
       <div class="ptrack">${bars}</div><div class="pdates">${dates}</div></div>`;
   });
-  if (bodyEx) html += `<div class="seclabel">Working weight by exercise</div>` + bodyEx;
+  if (bodyEx) html += `<div class="seclabel">${ic("dumbbell")}Working weight by exercise</div>` + bodyEx;
 
   view.innerHTML = html;
 }
@@ -1776,7 +1804,7 @@ function renderEditDay(day) {
   let html = `<button class="backbtn" id="backDays">\u2190 All days</button>`;
   html += `<div class="edfield"><label>Day name</label><input id="dayName" value="${escAttr(day)}" /></div>`;
   html += `<div class="edfield"><label>Focus (the small subtitle)</label><input id="dayFocus" value="${escAttr(d.focus || "")}" placeholder="e.g. Quads \u00b7 hamstrings \u00b7 core" /></div>`;
-  html += `<div class="seclabel">Exercises</div>`;
+  html += `<div class="seclabel">${ic("list")}Exercises</div>`;
   d.ex.forEach((ex, i) => { html += exerciseEditor(ex, i); });
   if (pickingExercise) html += exercisePickerHtml();
   else html += `<button class="toolbtn" id="addExBtn">+ Add exercise</button>`;
@@ -2379,7 +2407,7 @@ function renderWeight() {
     <div class="stat"><div class="lbl">To goal</div><div class="val" style="font-size:18px">${toGoal != null ? (toGoal > 0.05 ? toGoal.toFixed(1) + " kg" : "reached") : "\u2014"}</div></div>
   </div>`;
 
-  html += `<div class="card"><h2>Weekly weight log</h2>
+  html += `<div class="card"><h2>${ic("scale")}Weekly weight log</h2>
     <div class="weighrow">
       <input id="wInput" class="weighinput" inputmode="decimal" placeholder="${cur != null ? cur + " kg" : "e.g. 70.5"}">
       <button class="weighbtn" id="wSave">Save</button>
@@ -2387,7 +2415,7 @@ function renderWeight() {
     <div class="mealhint" id="wHint"></div></div>`;
 
   const pts = s.slice(-14).map(w => ({ label: prettyShort(w.date), value: w.kg }));
-  html += `<div class="card"><h2>Weight over time</h2>
+  html += `<div class="card"><h2>${ic("scale")}Weight over time</h2>
     ${scatterChart(pts, { zeroBase: false, target: WEIGHT_GOAL, unit: " kg", empty: "Log your weight to start the trend." })}</div>`;
 
   if (s.length) {
