@@ -71,6 +71,9 @@
   .todayrow .td-name { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .todayrow .td-go { padding: 10px 12px; font-size: 13px; }
   .todayrow .navtile { display: flex; align-items: center; justify-content: center; text-align: center; border-radius: 16px; }
+  .todayrow .mealtile { flex-direction: column; gap: 4px; }
+  .mealtile .ic { width: 22px; height: 22px; margin: 0; }
+  .navrow .ic { width: 16px; height: 16px; margin-right: 6px; }
   .navrow.one { grid-template-columns: 1fr; }
   .navrow.one .nt-name { font-size: 14px; }
   .kicker {
@@ -258,6 +261,7 @@
   .navrow .nt-name { font-size: 13px; }
   .navrow.two { grid-template-columns: 1fr 1fr; }
   .navrow.three { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
+  .navrow.one + .navrow.two { margin-top: 6px; }
   .navrow.two .nt-name, .navrow.three .nt-name { font-size: 14px; }
   .td-bar span { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .3s; }
   .td-bar.over span { background: var(--over); }
@@ -327,6 +331,7 @@
   .tg-hint { text-align: center; font-size: 12px; color: var(--over-ink); min-height: 16px; margin-top: 6px; }
   .tg-note { font-size: 11px; color: var(--ink-faint); margin: 8px 4px 0; line-height: 1.45; text-align: center; }
   .stat.goaltap:active { background: #FBFBFC; }
+  .goalchg { position: absolute; top: 10px; right: 10px; border: 1.5px solid rgba(14,158,144,.35); border-radius: 8px; padding: 3px 8px; font-family: var(--display); font-weight: 600; font-size: 11.5px; color: var(--accent-ink); background: #fff; }
   .stat.goaledit { grid-column: 1 / -1; }
   .goalinput { width: 100%; margin-top: 7px; border: 1.5px solid var(--line); border-radius: 9px; padding: 9px 10px; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); background: #fff; outline: none; }
   .goalinput:focus { border-color: var(--accent); }
@@ -901,6 +906,9 @@ const ICONS = {
   drop:     '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/>',
   bars:     '<path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/>',
   scale:    '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M9 9.5a4.2 4.2 0 0 1 6 0M12 9.8l1.2-1.8"/>',
+  meal:     '<path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3H17"/>',
+  clip:     '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+  clock:    '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   list:     '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/>'
 };
 function ic(name) { return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
@@ -1121,7 +1129,7 @@ function todayCardHtml(today) {
   }
 
   return `<div class="todayrow"><div class="card today">${workout}</div>
-    <button class="navtile" data-go="meals"><span class="nt-name">Meals</span></button></div>`;
+    <button class="navtile mealtile" data-go="meals">${ic("meal")}<span class="nt-name">Meals</span></button></div>`;
 }
 
 // Protein, added sugar and saturated fat today: one card above the calorie chart.
@@ -1174,7 +1182,7 @@ function renderHome() {
   html += `<div class="chartgrid">
     <div class="card"><h2>${ic("bars")}Volume / session</h2>
       <div class="volbody">${volChartHtml(SMALL_BASE_H)}</div></div>
-    <div class="card"><h2>${ic("scale")}Weight</h2>
+    <div class="card tap" id="wCard"><h2>${ic("scale")}Weight</h2>
       <div class="wbody">${weightChartHtml(SMALL_BASE_H)}</div></div>
   </div>`;
 
@@ -1196,12 +1204,11 @@ function renderHome() {
   // beside Next workout); the calorie chart shrinks to make room
   html += `<div class="navwrap">
       <div class="navrow one">
-        <button class="navtile" data-go="log"><span class="nt-name">Log</span></button>
+        <button class="navtile" data-go="log">${ic("clip")}<span class="nt-name">Log</span></button>
       </div>
-      <div class="navrow three">
-        <button class="navtile" data-go="history"><span class="nt-name">History</span></button>
-        <button class="navtile" data-go="edit"><span class="nt-name">Routines</span></button>
-        <button class="navtile" data-go="weight"><span class="nt-name">Weight</span></button>
+      <div class="navrow two">
+        <button class="navtile" data-go="history">${ic("clock")}<span class="nt-name">History</span></button>
+        <button class="navtile" data-go="edit">${ic("list")}<span class="nt-name">Routines</span></button>
       </div>
     </div>`;
 
@@ -1210,6 +1217,8 @@ function renderHome() {
   view.querySelectorAll("[data-nut]").forEach(el => el.onclick = () => openNutrition(el.dataset.nut));
   const tdGo = document.getElementById("tdGo");
   if (tdGo) tdGo.onclick = () => startWorkout(tdGo.dataset.day);
+  const wCard = document.getElementById("wCard");
+  if (wCard) wCard.onclick = () => { goTab("weight"); window.scrollTo(0, 0); };
   fitHome();
 }
 
@@ -2399,7 +2408,7 @@ function renderWeight() {
         <input id="gInput" class="goalinput" inputmode="decimal" value="${WEIGHT_GOAL}">
         <button class="goalsave" id="gSave">Save</button>
       </div>`
-    : `<div class="stat goaltap" id="goalStat"><div class="lbl">Goal</div><div class="val">${WEIGHT_GOAL} <small>kg</small></div></div>`;
+    : `<div class="stat goaltap" id="goalStat"><div class="lbl">Goal</div><div class="val">${WEIGHT_GOAL} <small>kg</small></div><span class="goalchg">✎ Change</span></div>`;
   html += `<div class="stats">
     <div class="stat"><div class="lbl">Current</div><div class="val">${cur != null ? cur : "\u2014"} <small>kg</small></div></div>
     ${goalCell}
