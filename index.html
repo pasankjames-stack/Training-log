@@ -57,6 +57,10 @@
   /* ---- Header ---- */
   header { padding: 2px 2px 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   #hdrTargets { display: none; }
+  .hdr-l { display: flex; align-items: center; gap: 2px; }
+  .hdr-back { display: none; border: none; background: transparent; padding: 4px 2px 0 0; margin-left: -4px; cursor: pointer; }
+  .hdr-back svg { width: 24px; height: 24px; fill: none; stroke: var(--accent-ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  body.subback .hdr-back { display: inline-flex; }
   body.nutpage #hdrTargets { display: inline-block; }
   /* Title icons */
   .ic { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; flex-shrink: 0;
@@ -410,6 +414,38 @@
   .mb-none { font-size:12px; color:var(--ink-faint); padding:4px 0; }
   .me-edit { width:100%; margin-top:8px; border:1.5px solid rgba(14,158,144,.35); background:transparent; border-radius:10px; padding:9px; font-family:var(--display); font-weight:600; font-size:12.5px; color:var(--accent-ink); cursor:pointer; }
 
+  /* ---- Meals: list of days, then one day ---- */
+  .mdsec { font-family:var(--display); font-weight:700; font-size:14px; margin:2px 2px 10px; }
+  .mdlist { display:flex; flex-direction:column; gap:8px; }
+  .dayrow { width:100%; text-align:left; border:none; background:var(--card); border-radius:14px; padding:12px 14px 11px; box-shadow:var(--shadow); cursor:pointer; font:inherit; color:var(--ink); }
+  .dayrow:active { transform:translateY(1px); }
+  .dayrow.today { box-shadow: inset 0 0 0 1.5px rgba(14,158,144,.45), var(--shadow); }
+  .dr-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .dr-name { font-family:var(--display); font-weight:700; font-size:15px; }
+  .dr-date { font-family:var(--mono); font-size:10.5px; color:var(--ink-faint); margin-left:6px; font-weight:400; }
+  .dayrow { padding:13px 14px; }
+  .dr-top { align-items:center; }
+  .dr-k { font-family:var(--mono); font-size:15px; font-weight:700; white-space:nowrap; }
+  .dr-k small { font-size:11px; font-weight:400; color:var(--ink-faint); }
+  .dr-k.ok { color:var(--accent-ink); }
+  .dr-k.over { color:var(--over-ink); }
+  .dr-k.none { color:var(--ink-faint); }
+  .mdnav { display:flex; gap:8px; margin-top:4px; }
+  .wk-name { font-family:var(--display); font-weight:700; font-size:14.5px; }
+  .wk-sub { font-size:11px; color:var(--ink-faint); margin-top:1px; }
+  .dr-k.wk { text-align:right; line-height:1.2; }
+  .dr-k.wk small { display:block; font-size:10px; margin-top:1px; }
+  .mdnav .toolbtn { flex:1; }
+  .dr-meta { font-size:11.5px; color:var(--ink-soft); margin-top:6px; }
+  .dr-meta.empty { color:var(--ink-faint); }
+  .mdpick { display:flex; align-items:center; gap:10px; margin-top:12px; background:var(--card); border-radius:14px; padding:10px 14px; box-shadow:var(--shadow); }
+  .mdpick span { flex:1; font-family:var(--display); font-weight:600; font-size:13px; color:var(--ink-soft); }
+  .mdpick input { border:1.5px solid var(--line); border-radius:9px; padding:7px 9px; font-family:var(--mono); font-size:13px; color:var(--ink); background:#FBFBFC; outline:none; }
+  .card.daytot { padding:12px 14px 13px; margin-bottom:12px; }
+  .card.daytot h2 { margin:0; font-size:14px; }
+  .protcard .td-prow.nrow:first-child, .daytot .td-prow.nrow:first-child { margin-top:0; }
+  .mdempty { text-align:center; font-size:12.5px; color:var(--ink-soft); padding:18px 0; }
+
   .toolbtn {
     width: 100%; border: 1.5px solid var(--line); background: var(--card); border-radius: 12px;
     padding: 13px; font-family: var(--display); font-weight: 600; font-size: 13.5px;
@@ -468,7 +504,7 @@
 
 <div class="app">
   <header>
-    <h1 id="homeTitle">Health Track</h1>
+    <div class="hdr-l"><button class="hdr-back" id="hdrBack" aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><h1 id="homeTitle">Health Track</h1></div>
     <button class="nu-tbtn" id="hdrTargets">⚙ Targets</button>
   </header>
 
@@ -659,8 +695,7 @@ function bootFromSheet() {
       return;
     }
     applyLogAndPlan(payload);
-    if (Array.isArray(payload.meals)) { meals = mapMealRows(payload.meals); cacheMeals(); }
-    applyDaily(payload.daily);
+    if (Array.isArray(payload.meals)) applyMealsPayload(payload); else applyDaily(payload.daily);
     if (payload.targets && Object.keys(payload.targets).length) applyTargets(payload.targets);
     if (Array.isArray(payload.weights)) applyWeightRows(payload.weights);
     applyGoal(payload.goal);
@@ -866,6 +901,7 @@ function render() {
   document.body.classList.toggle("home", isHome);
   document.body.classList.toggle("nut", currentTab === "targets");
   document.body.classList.toggle("nutpage", currentTab === "nutrition");
+  document.body.classList.remove("subback");
   document.body.classList.toggle("logbar", currentTab === "log" && logPicked);
   if (currentTab === "home") renderHome();
   else if (currentTab === "log") renderLog();
@@ -885,6 +921,7 @@ function render() {
 function goTab(tab) {
   currentTab = tab; editingDay = null; goalEditing = false; pickingExercise = false; histDeleteKey = null;
   if (tab === "log") logPicked = false;   // always open on the routine list
+  if (tab === "meals") { if (mealStage === "idle") mealDay = null; mealView = "main"; mealWeek = 0; histLimit = 8; mealOpenTs = null; mealDeleteTs = null; }
   render();
   if (tab === "meals") refreshMeals();
   else if (tab === "weight") refreshWeights();
@@ -892,7 +929,12 @@ function goTab(tab) {
 }
 function wireHome() {
   const ht = document.getElementById("homeTitle");
-  if (ht) ht.onclick = () => { currentTab = "home"; editingDay = null; goalEditing = false; pickingExercise = false; render(); };
+  if (ht) ht.onclick = () => {
+    if (document.body.classList.contains("subback")) { mealBack(); return; }
+    currentTab = "home"; editingDay = null; goalEditing = false; pickingExercise = false; render();
+  };
+  const hb = document.getElementById("hdrBack");
+  if (hb) hb.onclick = mealBack;
   const tb = document.getElementById("hdrTargets");
   if (tb) tb.onclick = () => { targetDraft = null; goTab("targets"); };
 }
@@ -913,9 +955,8 @@ const ICONS = {
 };
 function ic(name) { return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`; }
 function caloriesByDay() {
-  const byDay = {};
-  meals.forEach(m => { if (!m.date) return; byDay[m.date] = (byDay[m.date] || 0) + (+m.kcal || 0); });
-  return Object.keys(byDay).sort().map(d => ({ date: d, kcal: Math.round(byDay[d]) }));
+  const t = dayTotals();
+  return Object.keys(t).sort().map(d => ({ date: d, kcal: t[d].kcal }));
 }
 
 // Generic scatter plot. points = [{label, value}]
@@ -1133,26 +1174,30 @@ function todayCardHtml(today) {
 }
 
 // Protein, added sugar and saturated fat today: one card above the calorie chart.
-// Protein is a goal to reach; sugar and sat fat are limits (teal under, red once over).
-function limitRow(label, value, limit, icon) {
-  const pct = Math.min(100, Math.round(value / limit * 100));
+// Protein is a goal to reach; calories, sugar and sat fat are limits (teal under, red once over).
+function limitRow(label, value, limit, icon, unit) {
+  const u = " " + (unit || "g");
+  const pct = limit > 0 ? Math.min(100, Math.round(value / limit * 100)) : 0;
   const over = value > limit;
+  const diff = Math.round(Math.abs(value - limit) * 10) / 10;
   return `<div class="td-prow nrow"><h2>${ic(icon)}${label}</h2>
-      <span class="td-pv"><b${over ? ' class="over"' : ""}>${value}</b> / ${limit} g \u00b7 ${over ? `<span class="over">${value - limit} g over</span>` : (limit - value) + " g left"}</span></div>
+      <span class="td-pv"><b${over ? ' class="over"' : ""}>${value.toLocaleString()}</b> / ${limit.toLocaleString()}${u} \u00b7 ${over ? `<span class="over">${diff.toLocaleString()}${u} over</span>` : diff.toLocaleString() + u + " left"}</span></div>
     <div class="td-bar${over ? " over" : ""}"><span style="width:${pct}%"></span></div>`;
 }
+function goalRow(label, value, target, icon) {
+  const pct = target > 0 ? Math.min(100, Math.round(value / target * 100)) : 0;
+  const left = Math.round((target - value) * 10) / 10;
+  return `<div class="td-prow nrow"><h2>${ic(icon)}${label}</h2>
+      <span class="td-pv"><b>${value}</b> / ${target} g \u00b7 ${left > 0 ? left + " g to go" : `<span class="done">\u2713 target hit</span>`}</span></div>
+    <div class="td-bar"><span style="width:${pct}%"></span></div>`;
+}
+function totalsFor(date) { return dayTotals()[date] || { kcal: 0, protein: 0, sugar: null, satfat: null }; }
 function proteinCardHtml(today) {
-  const todays = meals.filter(m => m.date === today);
-  const sum = f => Math.round(todays.reduce((a, m) => a + (+m[f] || 0), 0));
-  const prot = sum("protein");
-  const pct = Math.min(100, Math.round(prot / PROTEIN_TARGET * 100));
-  const left = PROTEIN_TARGET - prot;
+  const t = totalsFor(today);
   return `<div class="card protcard tap" data-nut="protein">
-    <div class="td-prow"><h2>${ic("drumstick")}Protein</h2>
-      <span class="td-pv"><b>${prot}</b> / ${PROTEIN_TARGET} g \u00b7 ${left > 0 ? left + " g to go" : `<span class="done">\u2713 target hit</span>`}</span></div>
-    <div class="td-bar"><span style="width:${pct}%"></span></div>
-    ${limitRow("Added sugar", sum("sugar"), SUGAR_LIMIT, "cube")}
-    ${limitRow("Saturated fat", sum("satfat"), SATFAT_LIMIT, "drop")}
+    ${goalRow("Protein", t.protein, PROTEIN_TARGET, "drumstick")}
+    ${limitRow("Added sugar", t.sugar || 0, SUGAR_LIMIT, "cube")}
+    ${limitRow("Saturated fat", t.satfat || 0, SATFAT_LIMIT, "drop")}
   </div>`;
 }
 
@@ -1163,7 +1208,7 @@ function renderHome() {
   const last = sessions.length ? sessions[sessions.length - 1] : null;
   const ago = last ? daysAgo(last.date) : null;
   const lastTxt = last ? (ago <= 0 ? "Today" : ago === 1 ? "Yesterday" : ago + " days ago") : "\u2014";
-  const kcalToday = meals.filter(m => m.date === today).reduce((a, m) => a + (+m.kcal || 0), 0);
+  const kcalToday = totalsFor(today).kcal;
   const sw = sortedWeights();
   const curW = sw.length ? sw[sw.length - 1].kg : null;
 
@@ -1254,10 +1299,11 @@ function fitHome() {
     barChart(_calPts, { target: KCAL_TARGET, height: h, empty: "No meals logged in the last 7 days." });
 }
 
-// ---------- Daily nutrition totals (all history, for the Nutrition screen) ----------
-// The sheet sends per-day totals for every day ever logged ("daily"); the app's own
-// meal list (last 60 meals) overrides the days it fully covers, so a meal added or
-// deleted on this phone shows up straight away.
+// ---------- Daily nutrition totals (all history — every chart reads these) ----------
+// The sheet sends per-day totals for every day ever logged ("daily"). Days whose
+// meals the app holds in full (the recent window, plus any older day opened on the
+// Meals screen) are totalled from those meals instead, so adding, editing or
+// deleting a meal updates the Home, Meals and Nutrition charts straight away.
 const DAILY_KEY = "ulp-daily-v1";
 let dailyServer = [];   // [[date, kcal, protein, sugar|"", satfat|""], ...]
 function applyDaily(rows) {
@@ -1266,27 +1312,40 @@ function applyDaily(rows) {
   try { localStorage.setItem(DAILY_KEY, JSON.stringify(rows)); } catch (e) {}
 }
 function loadDailyCache() { try { const v = localStorage.getItem(DAILY_KEY); if (v) dailyServer = JSON.parse(v) || []; } catch (e) {} }
-function dayTotals() {
-  const num = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
-  const out = {};
-  const local = {};
-  meals.forEach(m => {
-    if (!m.date) return;
-    const d = local[m.date] || (local[m.date] = { kcal: 0, protein: 0, sugar: null, satfat: null });
+function sumMeals(list) {
+  const d = { kcal: 0, protein: 0, sugar: null, satfat: null };
+  list.forEach(m => {
     d.kcal += +m.kcal || 0; d.protein += +m.protein || 0;
     if (m.sugar != null) d.sugar = (d.sugar || 0) + m.sugar;
     if (m.satfat != null) d.satfat = (d.satfat || 0) + m.satfat;
   });
-  const localDates = Object.keys(local).sort();
-  const oldest = localDates.length ? localDates[0] : "";
-  // The oldest day in a full 60-meal list may be cut off part-way, so the sheet's total wins there
-  const partialOldest = meals.length >= 60;
+  return d;
+}
+// Does `meals` hold every meal for this date? The sheet says so directly (mealsFrom);
+// an older backend sent the last 60 meals, whose oldest day may be cut off part-way.
+function isCovered(date) {
+  if (mealsFrom) return date >= mealsFrom;
+  let oldest = "";
+  meals.forEach(m => { if (m.date && (!oldest || m.date < oldest)) oldest = m.date; });
+  if (!oldest) return false;
+  return date > oldest || (date === oldest && meals.length < 60);
+}
+// All meals on a date, or null if that day hasn't been loaded yet
+function mealsForDate(date) {
+  if (isCovered(date)) return meals.filter(m => m.date === date);
+  return dayExtra[date] || null;
+}
+function dayTotals() {
+  const num = v => (v === "" || v == null || isNaN(+v)) ? null : +v;
+  const out = {};
   dailyServer.forEach(r => {
-    if (!r || !r[0]) return;
-    const usable = !oldest || r[0] < oldest || (r[0] === oldest && partialOldest);
-    if (usable) out[r[0]] = { kcal: num(r[1]) || 0, protein: num(r[2]) || 0, sugar: num(r[3]), satfat: num(r[4]) };
+    if (r && r[0]) out[r[0]] = { kcal: num(r[1]) || 0, protein: num(r[2]) || 0, sugar: num(r[3]), satfat: num(r[4]) };
   });
-  localDates.forEach(d => { if (!out[d]) out[d] = local[d]; });
+  const lists = {};
+  Object.keys(dayExtra).forEach(d => { if (!isCovered(d)) lists[d] = dayExtra[d].slice(); });
+  meals.forEach(m => { if (m.date && isCovered(m.date)) (lists[m.date] = lists[m.date] || []).push(m); });
+  Object.keys(out).forEach(d => { if (isCovered(d) && !lists[d]) delete out[d]; });   // all meals deleted
+  Object.keys(lists).forEach(d => { if (lists[d].length) out[d] = sumMeals(lists[d]); else delete out[d]; });
   Object.values(out).forEach(v => { v.kcal = Math.round(v.kcal); v.protein = Math.round(v.protein);
     if (v.sugar != null) v.sugar = Math.round(v.sugar); if (v.satfat != null) v.satfat = Math.round(v.satfat); });
   return out;
@@ -1962,12 +2021,32 @@ let pendingOil = "unsure";     // none | little | lot | unsure
 let pendingDate = null;        // date for the meal being confirmed (editing keeps the original)
 let pendingReplaceTs = null;   // when editing, the ts of the meal being replaced
 let mealOpenTs = null;         // ts of the meal whose breakdown is expanded
+let mealDay = null;            // Meals tab: null = list of days, else the "yyyy-mm-dd" being viewed
+let mealView = "main";        // Meals tab: "main" (last 7 days) | "hist" (list of weeks) | "week" (one past week)
+let mealWeek = 0;             // which past week is open (1 = the 7 days before the last 7)
+let histLimit = 8;            // weeks listed on History before "Show older weeks"
+let mealsFrom = null;          // first date whose meals are all in `meals` (sent by the sheet)
+let dayExtra = {};             // date -> meals, for older days opened on the Meals screen
+let dayLoad = {};              // date -> "loading" | "error"
+const MEALSFROM_KEY = "ulp-mealsfrom-v1";
 const OIL_CHOICES = [["none","None"],["little","A little"],["lot","A lot"],["unsure","Not sure"]];
 
 function loadMealsCache() {
   try { const v = localStorage.getItem(MEALS_KEY); if (v) meals = JSON.parse(v); } catch (e) {}
+  try { mealsFrom = localStorage.getItem(MEALSFROM_KEY) || null; } catch (e) {}
 }
-function cacheMeals() { try { localStorage.setItem(MEALS_KEY, JSON.stringify(meals)); } catch (e) {} }
+function cacheMeals() {
+  try { localStorage.setItem(MEALS_KEY, JSON.stringify(meals)); } catch (e) {}
+  try { if (mealsFrom) localStorage.setItem(MEALSFROM_KEY, mealsFrom); else localStorage.removeItem(MEALSFROM_KEY); } catch (e) {}
+}
+// A getMeals / boot payload: the recent meals, the window they cover, and daily totals
+function applyMealsPayload(payload) {
+  meals = mapMealRows(payload.meals);
+  mealsFrom = payload.mealsFrom ? String(payload.mealsFrom).slice(0, 10) : null;
+  Object.keys(dayExtra).forEach(d => { if (isCovered(d)) delete dayExtra[d]; });
+  cacheMeals();
+  applyDaily(payload.daily);
+}
 function mapMealRows(rows) {
   return rows.map(r => {
     let items = null;
@@ -2018,10 +2097,10 @@ function pollDetect(ts, tries) {
       pendingItems = payload.items.map(it => ({ name: it.name || "", qty: (it.qty != null ? it.qty : ""), unit: it.unit || "g" }));
       pendingNote = "";
       mealStage = "confirming";
-      renderMeals();
+      showMeals();
       return;
     }
-    if (tries <= 0) { mealStage = "idle"; resetPendingMeal(); renderMeals(); mealHint("Couldn't detect that photo — check Executions, or try again."); return; }
+    if (tries <= 0) { mealStage = "idle"; resetPendingMeal(); showMeals(); mealHint("Couldn't detect that photo — check Executions, or try again."); return; }
     setTimeout(() => pollDetect(ts, tries - 1), 2500);
   });
 }
@@ -2033,27 +2112,45 @@ function postFinalize(ts, date, items, note, oil, replaceTs) {
       body: JSON.stringify({ action: "finalizeMeal", token: APP_TOKEN, ts, date, items, note, oil, replaceTs }) });
   } catch (e) {}
 }
-function pollForMeal(ts, tries, cb) {
-  jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
-    if (!err && payload && payload.meals) {
+// Wait for a just-estimated meal to land in the sheet. Recent days come back with
+// the normal meal list; older days are re-read on their own.
+function pollForMeal(ts, date, tries, cb) {
+  const oldDay = !!(mealsFrom && date < mealsFrom);
+  const url = SHEET_SYNC_URL + (oldDay ? "?action=getMealsDay&date=" + encodeURIComponent(date) : "?action=getMeals");
+  jsonp(url, (err, payload) => {
+    if (!err && payload && Array.isArray(payload.meals)) {
       const found = payload.meals.find(r => +r[0] === ts);
       if (found) {
-        meals = mapMealRows(payload.meals);
-        cacheMeals(); applyDaily(payload.daily); cb(null, found); return;
+        if (oldDay) { dayExtra[date] = mapMealRows(payload.meals); delete dayLoad[date]; }
+        else applyMealsPayload(payload);
+        cb(null, found); return;
       }
     }
     if (tries <= 0) { cb(new Error("timeout")); return; }
-    setTimeout(() => pollForMeal(ts, tries - 1, cb), 2500);
+    setTimeout(() => pollForMeal(ts, date, tries - 1, cb), 2500);
   });
+}
+// Load every meal on an older day (one outside the recent window)
+function fetchMealDay(date) {
+  if (!SHEET_SYNC_URL || dayLoad[date] === "loading") return;
+  dayLoad[date] = "loading";
+  jsonp(SHEET_SYNC_URL + "?action=getMealsDay&date=" + encodeURIComponent(date), (err, payload) => {
+    if (!err && payload && Array.isArray(payload.meals)) { dayExtra[date] = mapMealRows(payload.meals); delete dayLoad[date]; }
+    else dayLoad[date] = "error";
+    if (["meals", "home", "nutrition"].includes(currentTab)) renderIfIdle();
+  });
+}
+// Redraw after a background meal step finishes — only if that screen is showing
+function showMeals() {
+  if (currentTab === "meals") renderMeals();
+  else if (currentTab === "home" || currentTab === "nutrition") renderIfIdle();
 }
 
 function fetchMeals(cb) {
   if (!SHEET_SYNC_URL) { if (cb) cb(); return; }
   jsonp(SHEET_SYNC_URL + "?action=getMeals", (err, payload) => {
     if (!err && payload && payload.meals) {
-      meals = mapMealRows(payload.meals);
-      cacheMeals();
-      applyDaily(payload.daily);
+      applyMealsPayload(payload);
     }
     if (cb) cb();
   });
@@ -2074,6 +2171,7 @@ async function onMealPhoto(e) {
   catch (err) { mealHint("Couldn't read that photo — try again."); return; }
   resetPendingMeal();
   pendingTs = Date.now();
+  pendingDate = mealDay || isoToday();
   mealStage = "detecting";
   renderMeals();
   postDetect(b64, pendingTs);
@@ -2089,6 +2187,7 @@ function startManualMeal() {
   resetPendingMeal();
   pendingTs = Date.now();
   pendingItems = [{ name:"", qty:"", unit:"g" }];
+  pendingDate = mealDay || isoToday();
   mealStage = "confirming";
   renderMeals();
 }
@@ -2096,7 +2195,8 @@ function startManualMeal() {
 // Re-open a logged meal on the confirm screen with its itemised grams, so one
 // wrong item can be fixed and the meal re-estimated (it replaces the old one).
 function editMeal(ts) {
-  const m = meals.find(x => +x.ts === +ts); if (!m) return;
+  const m = meals.find(x => +x.ts === +ts) || (mealsForDate(mealDay || "") || []).find(x => +x.ts === +ts);
+  if (!m) return;
   resetPendingMeal();
   mealDeleteTs = null;
   pendingTs = Date.now();
@@ -2116,17 +2216,21 @@ function editMeal(ts) {
 function confirmMeal() {
   pendingItems = pendingItems.filter(it => String(it.name || "").trim());
   if (!pendingItems.length) { mealHint("Add at least one food first."); return; }
-  const ts = pendingTs, date = pendingDate || isoToday();
+  const ts = pendingTs, date = pendingDate || mealDay || isoToday();
   const items = pendingItems.slice(), note = pendingNote, oil = pendingOil, replaceTs = pendingReplaceTs;
   mealStage = "estimating";
   renderMeals();
   postFinalize(ts, date, items, note, oil, replaceTs);
-  pollForMeal(ts, 12, (err) => {
+  pollForMeal(ts, date, 12, (err) => {
     if (pendingTs !== ts) return;
     mealStage = "idle"; resetPendingMeal();
     if (!err) mealOpenTs = ts;     // show the new breakdown straight away
-    renderMeals();
-    if (err) mealHint("Still estimating — switch tabs and back to refresh.");
+    else {
+      if (mealsFrom && date < mealsFrom) delete dayExtra[date];   // re-read the day next time
+      setTimeout(refreshMeals, 8000);
+    }
+    showMeals();
+    if (err) mealHint("Still estimating — it'll appear here shortly.");
   });
 }
 
@@ -2139,6 +2243,7 @@ function cancelMeal() {
 // the sheet delete keeps it from reappearing on the next refresh.
 function deleteMeal(ts) {
   meals = meals.filter(m => +m.ts !== +ts);
+  Object.keys(dayExtra).forEach(d => { dayExtra[d] = dayExtra[d].filter(m => +m.ts !== +ts); });
   cacheMeals();
   mealDeleteTs = null;
   pushMealDelete(ts);
@@ -2190,20 +2295,189 @@ function mealConfirmHtml() {
   </div>`;
 }
 
-function renderMeals() {
+// ---------- Meals screen: a list of days, then one day's meals ----------
+function dayLabel(iso) {
   const today = isoToday();
-  const todays = meals.filter(m => m.date === today);
-  const kcal = todays.reduce((a, m) => a + (+m.kcal || 0), 0);
-  const prot = todays.reduce((a, m) => a + (+m.protein || 0), 0);
+  if (iso === today) return "Today";
+  const y = new Date(today + "T00:00:00"); y.setDate(y.getDate() - 1);
+  if (iso === isoOf(y)) return "Yesterday";
+  return prettyDate(iso);
+}
+function openMealDay(date) {
+  if (!date) return;
+  mealDay = date; mealOpenTs = null; mealDeleteTs = null;
+  renderMeals();
+  window.scrollTo(0, 0);
+}
+function renderMeals() {
+  if (mealStage !== "idle" && pendingDate) mealDay = pendingDate;   // keep a meal in progress on screen
+  if (mealDay) renderMealDay(mealDay);
+  else if (mealView === "hist") renderMealHistory();
+  else if (mealView === "week") renderMealWeek(mealWeek);
+  else renderMealMain();
+  // Back arrow before the logo on any page below the main list (hidden while a photo or estimate is running)
+  const busy = mealStage === "detecting" || mealStage === "estimating";
+  document.body.classList.toggle("subback", currentTab === "meals" && !busy && (!!mealDay || mealView !== "main"));
+  wireHome();
+}
+// One step back: a day -> the list it came from; a week -> History; History -> main list
+function mealBack() {
+  if (mealStage === "detecting" || mealStage === "estimating") return;
+  if (mealStage === "confirming") { mealStage = "idle"; resetPendingMeal(); }
+  if (mealDay) { mealDay = null; mealOpenTs = null; mealDeleteTs = null; }
+  else if (mealView === "week") mealView = "hist";
+  else mealView = "main";
+  renderMeals();
+  window.scrollTo(0, 0);
+}
 
-  let html = `<div class="stats">
-    <div class="stat tap" data-nut="kcal"><div class="lbl">Today · calories</div><div class="val">${kcal || 0} <small>/ ${KCAL_TARGET} kcal</small></div></div>
-    <div class="stat tap" data-nut="protein"><div class="lbl">Today · protein</div><div class="val">${prot || 0} <small>/ ${PROTEIN_TARGET} g</small></div></div>
+// Rolling 7-day blocks: 0 = the last 7 days, 1 = the 7 before that, and so on
+function weekOfDays(offset) {
+  const t0 = new Date(isoToday() + "T00:00:00");
+  const out = [];
+  for (let i = 0; i < 7; i++) { const d = new Date(t0); d.setDate(t0.getDate() - 7 * offset - i); out.push(isoOf(d)); }
+  return out;   // newest first
+}
+function weekStats(offset, totals) {
+  const dates = weekOfDays(offset);
+  const logged = dates.filter(d => totals[d]);
+  const sum = logged.reduce((a, d) => a + totals[d].kcal, 0);
+  return { dates, logged: logged.length, over: logged.filter(d => totals[d].kcal > KCAL_TARGET).length,
+           avg: logged.length ? Math.round(sum / logged.length) : null };
+}
+function kcalBadge(v) {   // green at or under target, red over, grey dash when nothing logged
+  return v == null ? `<span class="dr-k none">—</span>`
+    : `<span class="dr-k ${v > KCAL_TARGET ? "over" : "ok"}">${v.toLocaleString()} <small>kcal</small></span>`;
+}
+// Seven day rows, newest first; tapping one opens that day
+function dayRowsHtml(dates, totals) {
+  const today = isoToday();
+  return `<div class="mdlist">` + dates.map(d => {
+    const lbl = dayLabel(d);
+    const sub = (lbl === "Today" || lbl === "Yesterday") ? `<span class="dr-date">${prettyDate(d)}</span>` : "";
+    return `<button class="dayrow${d === today ? " today" : ""}" data-mday="${d}">
+      <div class="dr-top"><span class="dr-name">${lbl}${sub}</span>${kcalBadge(totals[d] ? totals[d].kcal : null)}</div>
+    </button>`;
+  }).join("") + `</div>`;
+}
+function wireDayRows() {
+  view.querySelectorAll("[data-mday]").forEach(b => b.onclick = () => openMealDay(b.dataset.mday));
+}
+function mealActsHtml() {
+  return `<div class="mealacts">
+      <label class="mealact">
+        <input type="file" accept="image/*" capture="environment" id="mealFile" hidden>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.2-1.8a1 1 0 0 1 .83-.45h5.94a1 1 0 0 1 .83.45L17 7h2.5A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+        <span class="ma-text">Snap a meal</span>
+      </label>
+      <button class="mealact" id="mealManual">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        <span class="ma-text">Add manually</span>
+      </button>
+    </div>`;
+}
+
+// Main list: Snap / Add, the last 7 days, and History
+function renderMealMain() {
+  const totals = dayTotals();
+  view.innerHTML = mealActsHtml() + `<div class="mealhint" id="mealHint"></div>`
+    + `<div class="mdsec">${ic("meal")}Last 7 days</div>`
+    + dayRowsHtml(weekOfDays(0), totals)
+    + `<div class="mdnav"><button class="toolbtn" id="mdHist">History</button></div>`;
+  wireDayRows();
+  document.getElementById("mdHist").onclick = () => { mealView = "hist"; renderMeals(); window.scrollTo(0, 0); };
+  const file = document.getElementById("mealFile");
+  if (file) file.onchange = onMealPhoto;              // logs to today
+  const manual = document.getElementById("mealManual");
+  if (manual) manual.onclick = startManualMeal;
+}
+
+// History: past weeks, newest first, with average calories per logged day
+function renderMealHistory() {
+  const totals = dayTotals();
+  const earliest = Object.keys(totals).sort()[0] || "";
+  let html = `<div class="loghead"><div class="lh-name">History</div></div><div class="mdlist">`;
+  for (let w = 1; w <= histLimit; w++) {
+    const st = weekStats(w, totals);
+    const sub = st.logged ? `${st.logged} day${st.logged === 1 ? "" : "s"} logged · ${st.over} over` : "Nothing logged";
+    const val = st.avg == null ? `<span class="dr-k none">—</span>`
+      : `<span class="dr-k wk ${st.avg > KCAL_TARGET ? "over" : "ok"}">${st.avg.toLocaleString()}<small>avg kcal/day</small></span>`;
+    html += `<button class="dayrow" data-mweek="${w}">
+      <div class="dr-top"><span><div class="wk-name">${rangeLabel(st.dates.slice().reverse())}</div><div class="wk-sub">${sub}</div></span>${val}</div>
+    </button>`;
+  }
+  html += `</div>`;
+  // Offer more only while there is older data to show
+  const oldestShown = weekOfDays(histLimit)[6];
+  if (earliest && earliest < oldestShown) html += `<div class="mdnav"><button class="toolbtn" id="mdMoreWeeks">Show older weeks</button></div>`;
+  view.innerHTML = html;
+  view.querySelectorAll("[data-mweek]").forEach(b => b.onclick = () => {
+    mealWeek = +b.dataset.mweek; mealView = "week"; renderMeals(); window.scrollTo(0, 0);
+  });
+  const more = document.getElementById("mdMoreWeeks");
+  if (more) more.onclick = () => { histLimit += 8; renderMeals(); };
+}
+
+// One past week: its 7 days
+function renderMealWeek(w) {
+  const totals = dayTotals();
+  const st = weekStats(w, totals);
+  view.innerHTML = `<div class="loghead"><div class="lh-name">${rangeLabel(st.dates.slice().reverse())}</div>`
+    + `<div class="lh-focus">${st.avg == null ? "Nothing logged" : "Avg " + st.avg.toLocaleString() + " kcal/day"}</div></div>`
+    + dayRowsHtml(st.dates, totals);
+  wireDayRows();
+}
+
+function mealEntryHtml(m) {
+  const d = new Date(m.ts);
+  // Time of day only when the meal was logged on the day it belongs to
+  const tt = (!isNaN(d.getTime()) && isoOf(d) === m.date) ? d.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" }) : "";
+  if (+m.ts === +mealDeleteTs) {
+    return `<div class="mealentry">
+      <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span><span class="me-time">${tt}</span></div>
+      <div class="me-delconfirm">
+        <span class="me-delq">Delete this meal?</span>
+        <button class="me-delyes" data-mealdelyes="${m.ts}">Delete</button>
+        <button class="me-delno" data-mealdelno="1">Cancel</button>
+      </div>
+    </div>`;
+  }
+  // Tap a meal to see where its calories come from, and to fix it
+  let brk = "";
+  if (+m.ts === +mealOpenTs) {
+    brk = `<div class="me-break">` + (m.items && m.items.length
+      ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${itemFigures(it)}</span></div>`).join("")
+      : `<div class="mb-none">No item breakdown — this meal was logged before itemised estimates.</div>`)
+      + `<button class="me-edit" data-mealedit="${m.ts}">Edit &amp; re-estimate</button></div>`;
+  }
+  return `<div class="mealentry tap" data-mealopen="${m.ts}">
+    <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span>
+      <span class="me-right"><span class="me-time">${tt}</span><button class="me-del" data-mealdel="${m.ts}" aria-label="Delete meal">✕</button></span></div>
+    <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span>${m.sugar != null ? `<span class="me-mac"><b>${Math.round(m.sugar)}</b> g sugar</span>` : ""}${m.satfat != null ? `<span class="me-mac"><b>${Math.round(m.satfat)}</b> g sat fat</span>` : ""}</div>
+    ${brk}
+  </div>`;
+}
+
+// One day: its totals, add buttons, and every meal logged that day
+function renderMealDay(date) {
+  const list = mealsForDate(date);
+  if (!list && !dayLoad[date]) fetchMealDay(date);
+  const t = dayTotals()[date] || { kcal: 0, protein: 0, sugar: null, satfat: null };
+  const busy = mealStage === "detecting" || mealStage === "estimating";
+  const lbl = dayLabel(date);
+
+  let html = "";
+  html += `<div class="loghead"><div class="lh-name">${lbl}</div>${lbl !== prettyDate(date) ? `<div class="lh-focus">${prettyDate(date)}</div>` : ""}</div>`;
+  html += `<div class="card daytot tap" data-nut="kcal">
+    ${limitRow("Calories", t.kcal, KCAL_TARGET, "flame", "kcal")}
+    ${goalRow("Protein", t.protein, PROTEIN_TARGET, "drumstick")}
+    ${limitRow("Added sugar", t.sugar || 0, SUGAR_LIMIT, "cube")}
+    ${limitRow("Saturated fat", t.satfat || 0, SATFAT_LIMIT, "drop")}
   </div>`;
 
   if (mealStage === "confirming") {
     html += mealConfirmHtml();
-  } else if (mealStage === "detecting" || mealStage === "estimating") {
+  } else if (busy) {
     html += `<div class="mealbusy"><div class="mb-spin"></div>
       <div class="mb-text">${mealStage === "detecting" ? "Detecting what's on the plate…" : "Estimating calories…"}</div></div>`;
   } else {
@@ -2222,44 +2496,22 @@ function renderMeals() {
 
   html += `<div class="mealhint" id="mealHint"></div>`;
 
-  if (!meals.length) {
-    html += `<div class="empty"><div class="big">No meals logged yet</div>Snap or describe your first meal and it'll show up here.</div>`;
+  if (!list) {
+    html += dayLoad[date] === "error"
+      ? `<div class="mdempty">Couldn't load this day's meals. If you've just updated the app, redeploy Code.gs as a new version.<button class="toolbtn" id="mdRetry">Try again</button></div>`
+      : `<div class="mdempty">Loading meals…</div>`;
+  } else if (!list.length) {
+    html += `<div class="mdempty">Nothing logged for this day yet.</div>`;
   } else {
-    meals.slice(0, 40).forEach(m => {
-      const d = new Date(m.ts);
-      const tt = isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, { weekday:"short", hour:"numeric", minute:"2-digit" });
-      if (+m.ts === +mealDeleteTs) {
-        html += `<div class="mealentry">
-          <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span><span class="me-time">${tt}</span></div>
-          <div class="me-delconfirm">
-            <span class="me-delq">Delete this meal?</span>
-            <button class="me-delyes" data-mealdelyes="${m.ts}">Delete</button>
-            <button class="me-delno" data-mealdelno="1">Cancel</button>
-          </div>
-        </div>`;
-      } else {
-        // Tap a meal to see where its calories come from, and to fix it
-        let brk = "";
-        if (+m.ts === +mealOpenTs) {
-          brk = `<div class="me-break">` + (m.items && m.items.length
-            ? m.items.map(it => `<div class="mb-row"><span class="mb-name">${escHtml(it.name)}${it.grams ? " · " + it.grams + " g" : ""}</span><span class="mb-val">${itemFigures(it)}</span></div>`).join("")
-            : `<div class="mb-none">No item breakdown — this meal was logged before itemised estimates.</div>`)
-            + `<button class="me-edit" data-mealedit="${m.ts}">Edit &amp; re-estimate</button></div>`;
-        }
-        html += `<div class="mealentry tap" data-mealopen="${m.ts}">
-          <div class="me-top"><span class="me-label">${escHtml(m.label || "meal")}</span>
-            <span class="me-right"><span class="me-time">${tt}</span><button class="me-del" data-mealdel="${m.ts}" aria-label="Delete meal">✕</button></span></div>
-          <div class="me-macros"><span class="me-mac"><b>${m.kcal || "–"}</b> kcal</span><span class="me-mac"><b>${m.protein || "–"}</b> g protein</span>${m.sugar != null ? `<span class="me-mac"><b>${Math.round(m.sugar)}</b> g sugar</span>` : ""}${m.satfat != null ? `<span class="me-mac"><b>${Math.round(m.satfat)}</b> g sat fat</span>` : ""}</div>
-          ${brk}
-        </div>`;
-      }
-    });
+    list.slice().sort((a, b) => a.ts - b.ts).forEach(m => { html += mealEntryHtml(m); });
   }
 
   view.innerHTML = html;
 
-  // Delete controls on logged meals (active in any stage)
-  view.querySelectorAll(".stat[data-nut]").forEach(el => el.onclick = () => openNutrition(el.dataset.nut));
+  const retry = document.getElementById("mdRetry");
+  if (retry) retry.onclick = () => { delete dayLoad[date]; renderMeals(); };
+
+  view.querySelectorAll("[data-nut]").forEach(el => el.onclick = () => openNutrition(el.dataset.nut));
   view.querySelectorAll("[data-mealdel]").forEach(b => b.onclick = (e) => { e.stopPropagation(); mealDeleteTs = +b.dataset.mealdel; renderMeals(); });
   view.querySelectorAll("[data-mealdelyes]").forEach(b => b.onclick = () => deleteMeal(+b.dataset.mealdelyes));
   view.querySelectorAll("[data-mealdelno]").forEach(b => b.onclick = () => { mealDeleteTs = null; renderMeals(); });
@@ -2292,7 +2544,6 @@ function renderMeals() {
     const cf = document.getElementById("mcConfirm"); if (cf) cf.onclick = confirmMeal;
     const cx = document.getElementById("mcCancel"); if (cx) cx.onclick = cancelMeal;
   }
-  wireHome();
 }
 
 // ---------- Weight tracking (local) ----------
